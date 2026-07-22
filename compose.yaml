@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yingchuan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yingchuan_local_only}
+      POSTGRES_USER: ${POSTGRES_USER:-yingchuan}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  postgres-test:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${TEST_POSTGRES_DB:-yingchuan_test}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-yingchuan_test_local_only}
+      POSTGRES_USER: ${TEST_POSTGRES_USER:-yingchuan_test}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "127.0.0.1:${TEST_POSTGRES_PORT:-55433}:5432"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-yingchuan_local_only}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a '$${REDIS_PASSWORD}' ping",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-yingchuan_local_only}
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-56379}:6379"
+    restart: unless-stopped
+    stop_grace_period: 10s
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  postgres_test_data:
+  redis_data:

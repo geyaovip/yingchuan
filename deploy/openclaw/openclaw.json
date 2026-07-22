@@ -1,0 +1,34 @@
+{
+  "agents": {
+    "defaults": {
+      "model": { "primary": "yingchuan-gateway/yingchuan-agent" }
+    }
+  },
+  "gateway": {
+    "auth": { "mode": "token", "token": "${OPENCLAW_GATEWAY_TOKEN}" },
+    "bind": "lan",
+    "http": { "endpoints": { "chatCompletions": { "enabled": true } } },
+    "mode": "local"
+  },
+  "models": {
+    "mode": "replace",
+    "providers": {
+      "yingchuan-gateway": {
+        "api": "openai-completions",
+        "apiKey": "${OPENCLAW_GATEWAY_TOKEN}",
+        "baseUrl": "http://api:3000/api/v1/internal/model-gateway/v1",
+        "models": [
+          {
+            "contextWindow": 32768,
+            "id": "yingchuan-agent",
+            "input": ["text"],
+            "maxTokens": 10000,
+            "name": "Yingchuan Model Gateway",
+            "reasoning": false
+          }
+        ]
+      }
+    }
+  },
+  "tools": { "deny": ["*"], "profile": "minimal" }
+}

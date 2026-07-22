@@ -1,0 +1,56 @@
+{
+  "name": "yingchuan",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=22.16.0",
+    "npm": ">=10.9.0"
+  },
+  "overrides": {
+    "@redocly/openapi-core": {
+      "js-yaml": "4.3.0"
+    }
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "db:fixtures:test": "npm run db:fixtures:test --workspace @yingchuan/database",
+    "db:generate": "npm run db:generate --workspace @yingchuan/database",
+    "db:migrate:dev": "npm exec --workspace @yingchuan/database -- prisma migrate dev",
+    "db:migrate:test": "npm run db:migrate:test --workspace @yingchuan/database",
+    "deps:config": "./scripts/dev-deps.sh config",
+    "deps:down": "./scripts/dev-deps.sh down",
+    "deps:logs": "./scripts/dev-deps.sh logs",
+    "deps:status": "./scripts/dev-deps.sh status",
+    "deps:up": "./scripts/dev-deps.sh up",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "openapi:generate": "npm run openapi:generate --workspace @yingchuan/api && openapi-typescript docs/generated/openapi.json -o packages/api-client/src/generated/openapi.ts && prettier --write docs/generated/openapi.json packages/api-client/src/generated/openapi.ts",
+    "openapi:check": "npm run openapi:generate && git diff --exit-code -- docs/generated/openapi.json packages/api-client/src/generated/openapi.ts",
+    "secrets:check": "python3 scripts/check-secrets.py",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "docs:check": "./scripts/check-docs.sh",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run openapi:check && npm run docs:check && npm run secrets:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "^22.0.0",
+    "eslint": "10.7.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "globals": "17.7.0",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "3.9.6",
+    "turbo": "2.10.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "4.1.10"
+  }
+}

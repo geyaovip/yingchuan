@@ -1,0 +1,18 @@
+api.chatway.chat {
+  encode zstd gzip
+
+  @metrics path /api/v1/metrics
+  respond @metrics 404
+
+  reverse_proxy 127.0.0.1:18080 {
+    health_uri /api/v1/ready
+    health_status 200
+  }
+
+  header {
+    -Server
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+  }
+}

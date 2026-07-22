@@ -1,0 +1,6 @@
+node_modules
+dist
+coverage
+.playwright-cli
+package-lock.json
+docs/product/prd-v3.md

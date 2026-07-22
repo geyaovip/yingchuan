@@ -1,0 +1,957 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "AppController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["App"]
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "operationId": "AppController_getReadiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["App"]
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "operationId": "AppController_getMetrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["App"]
+      }
+    },
+    "/api/v1/auth/email-code-requests": {
+      "post": {
+        "operationId": "AuthController_requestEmailCode",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"]
+      }
+    },
+    "/api/v1/auth/email-code-verifications": {
+      "post": {
+        "operationId": "AuthController_verifyEmailCode",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "operationId": "AuthController_getSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"]
+      }
+    },
+    "/api/v1/auth/step-up-code-requests": {
+      "post": {
+        "operationId": "AuthController_requestStepUpCode",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"]
+      }
+    },
+    "/api/v1/auth/step-up-code-verifications": {
+      "post": {
+        "operationId": "AuthController_verifyStepUpCode",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"]
+      }
+    },
+    "/api/v1/workspaces": {
+      "post": {
+        "operationId": "WorkspaceController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      },
+      "get": {
+        "operationId": "WorkspaceController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}": {
+      "get": {
+        "operationId": "WorkspaceController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      },
+      "patch": {
+        "operationId": "WorkspaceController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/members": {
+      "get": {
+        "operationId": "WorkspaceController_members",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/invitations": {
+      "post": {
+        "operationId": "WorkspaceController_invite",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      },
+      "get": {
+        "operationId": "WorkspaceController_invitations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      }
+    },
+    "/api/v1/workspace-invitations/accept-actions": {
+      "post": {
+        "operationId": "WorkspaceController_acceptInvitation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/members/{memberId}": {
+      "patch": {
+        "operationId": "WorkspaceController_changeRole",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      },
+      "delete": {
+        "operationId": "WorkspaceController_removeMember",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": ["Workspace"]
+      }
+    },
+    "/api/v1/projects": {
+      "post": {
+        "operationId": "ProjectController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      },
+      "get": {
+        "operationId": "ProjectController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}": {
+      "get": {
+        "operationId": "ProjectController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      },
+      "patch": {
+        "operationId": "ProjectController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/archive-actions": {
+      "post": {
+        "operationId": "ProjectController_archive",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/restore-actions": {
+      "post": {
+        "operationId": "ProjectController_restore",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/identification-jobs/{jobId}": {
+      "get": {
+        "operationId": "ProjectController_identificationJob",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/brand-candidates": {
+      "post": {
+        "operationId": "ProjectController_addCandidate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/brand-candidates/{candidateId}": {
+      "delete": {
+        "operationId": "ProjectController_rejectCandidate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/identification-confirmations": {
+      "post": {
+        "operationId": "ProjectController_confirm",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/sources": {
+      "post": {
+        "operationId": "ProjectController_createSource",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/sources/{sourceId}": {
+      "patch": {
+        "operationId": "ProjectController_updateSource",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      },
+      "delete": {
+        "operationId": "ProjectController_disableSource",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/sources/{sourceId}/fetch-actions": {
+      "post": {
+        "operationId": "ProjectController_fetchSource",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/sources/{sourceId}/snapshots": {
+      "get": {
+        "operationId": "ProjectController_sourceSnapshots",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Project"]
+      }
+    },
+    "/api/v1/projects/{projectId}/prompts": {
+      "get": {
+        "operationId": "PromptController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      },
+      "post": {
+        "operationId": "PromptController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      }
+    },
+    "/api/v1/projects/{projectId}/prompts/{promptId}": {
+      "patch": {
+        "operationId": "PromptController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      },
+      "delete": {
+        "operationId": "PromptController_remove",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      }
+    },
+    "/api/v1/projects/{projectId}/prompts/{promptId}/versions": {
+      "get": {
+        "operationId": "PromptController_versions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      }
+    },
+    "/api/v1/projects/{projectId}/prompt-generation-jobs": {
+      "post": {
+        "operationId": "PromptController_generate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      }
+    },
+    "/api/v1/projects/{projectId}/prompts/import-actions": {
+      "post": {
+        "operationId": "PromptController_importMany",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      }
+    },
+    "/api/v1/projects/{projectId}/prompts/{promptId}/variant-actions": {
+      "post": {
+        "operationId": "PromptController_variants",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Prompt"]
+      }
+    },
+    "/api/v1/admin/model-providers": {
+      "get": {
+        "operationId": "ModelController_providers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-calls": {
+      "get": {
+        "operationId": "ModelController_calls",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-providers/{providerId}/status": {
+      "patch": {
+        "operationId": "ModelController_providerStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-providers/{providerId}/credential": {
+      "put": {
+        "operationId": "ModelController_credential",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-configs/{modelConfigId}": {
+      "put": {
+        "operationId": "ModelController_modelConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/projects/{projectId}/analysis-estimates": {
+      "post": {
+        "operationId": "ModelController_estimate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/projects/{projectId}/usage-reservations": {
+      "post": {
+        "operationId": "ModelController_reserve",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/usage": {
+      "get": {
+        "operationId": "ModelController_usage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/projects/{projectId}/analysis-jobs": {
+      "post": {
+        "operationId": "AnalysisController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      },
+      "get": {
+        "operationId": "AnalysisController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}": {
+      "get": {
+        "operationId": "AnalysisController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}/model-runs": {
+      "get": {
+        "operationId": "AnalysisController_runs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}/cancellation": {
+      "post": {
+        "operationId": "AnalysisController_cancel",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}/retries": {
+      "post": {
+        "operationId": "AnalysisController_retry",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/projects/{projectId}/scores": {
+      "get": {
+        "operationId": "ScoringController_scores",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Scoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/competitors": {
+      "get": {
+        "operationId": "ScoringController_competitors",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Scoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/competitors/{competitorId}": {
+      "patch": {
+        "operationId": "ScoringController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Scoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/reports": {
+      "get": {
+        "operationId": "ReportController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Report"]
+      }
+    },
+    "/api/v1/projects/{projectId}/reports/{versionId}": {
+      "get": {
+        "operationId": "ReportController_detail",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Report"]
+      }
+    },
+    "/api/v1/projects/{projectId}/reports/{versionId}/{action}": {
+      "post": {
+        "operationId": "ReportController_transition",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Report"]
+      }
+    },
+    "/api/v1/admin/dashboard": {
+      "get": {
+        "operationId": "AdminController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Admin"]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "operationId": "AdminController_users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Admin"]
+      }
+    },
+    "/api/v1/admin/projects": {
+      "get": {
+        "operationId": "AdminController_projects",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Admin"]
+      }
+    },
+    "/api/v1/admin/tasks": {
+      "get": {
+        "operationId": "AdminController_tasks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Admin"]
+      }
+    },
+    "/api/v1/admin/users/{userId}/status": {
+      "patch": {
+        "operationId": "AdminController_userStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Admin"]
+      }
+    },
+    "/api/v1/admin/workspaces/{workspaceId}/quota-adjustments": {
+      "post": {
+        "operationId": "AdminController_quota",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Admin"]
+      }
+    },
+    "/api/v1/admin/agent-runs": {
+      "get": {
+        "operationId": "AgentController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Agent"]
+      },
+      "post": {
+        "operationId": "AgentController_run",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Agent"]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "NotificationController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
+    "/api/v1/notifications/{notificationId}/read": {
+      "patch": {
+        "operationId": "NotificationController_read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
+    "/api/v1/admin/notification-channels/telegram": {
+      "get": {
+        "operationId": "NotificationController_config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      },
+      "put": {
+        "operationId": "NotificationController_save",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
+    "/api/v1/admin/notification-channels/telegram/test": {
+      "post": {
+        "operationId": "NotificationController_test",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
+    "/api/v1/admin/notification-deliveries": {
+      "get": {
+        "operationId": "NotificationController_deliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
+    "/api/v1/admin/data-lifecycle/legal-holds": {
+      "get": {
+        "operationId": "LifecycleController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Lifecycle"]
+      },
+      "post": {
+        "operationId": "LifecycleController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Lifecycle"]
+      }
+    },
+    "/api/v1/admin/data-lifecycle/legal-holds/{holdId}/release": {
+      "post": {
+        "operationId": "LifecycleController_release",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Lifecycle"]
+      }
+    },
+    "/api/v1/admin/audit-logs": {
+      "get": {
+        "operationId": "AuditController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Audit"]
+      }
+    }
+  },
+  "info": {
+    "title": "映川 API",
+    "description": "映川用户端、管理端与 Worker 的公开 HTTP 契约。",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "yingchuan_session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "yc_session"
+      }
+    },
+    "schemas": {}
+  }
+}

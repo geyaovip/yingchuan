@@ -1,0 +1,86 @@
+name: Deploy backend
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: yingchuan-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        target: [api, worker, migrate]
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.target }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - name: Prepare SSH trust
+        env:
+          SSH_HOST_KEY: ${{ secrets.DEPLOY_SSH_HOST_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        run: |
+          install -m 0700 -d "$RUNNER_TEMP/ssh"
+          install -m 0600 /dev/null "$RUNNER_TEMP/ssh/key"
+          printf '%s' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/key"
+          printf '%s\n' "$SSH_HOST_KEY" > "$RUNNER_TEMP/ssh/known_hosts"
+      - name: Upload immutable deployment files
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 0755 /opt/yingchuan/deploy'
+          scp -i "$RUNNER_TEMP/ssh/key" -P "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -r deploy/compose.production.yaml deploy/openclaw deploy/redis "$DEPLOY_USER@$DEPLOY_HOST:/opt/yingchuan/deploy/"
+      - name: Migrate and roll out isolated services
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "export IMAGE_TAG=${GITHUB_SHA}; bash -s" <<'REMOTE'
+          set -eu
+          cd /opt/yingchuan
+          export COMPOSE_PROJECT_NAME=yingchuan
+          openclaw_image=$(sed -n 's/^OPENCLAW_IMAGE=//p' /etc/yingchuan/production.env | tail -n 1)
+          if ! printf '%s' "$openclaw_image" | grep -Eq '^ghcr\.io/openclaw/openclaw:2026\.7\.1@sha256:[0-9a-f]{64}$'; then
+            echo 'OPENCLAW_IMAGE must pin official 2026.7.1 by sha256 digest.' >&2
+            exit 1
+          fi
+          compose='docker compose --project-name yingchuan --env-file /etc/yingchuan/production.env -f deploy/compose.production.yaml'
+          $compose pull api worker migrate openclaw-gateway
+          $compose up -d postgres redis
+          $compose --profile migration run --rm migrate
+          $compose up -d openclaw-gateway
+          $compose up -d --no-deps api worker
+          REMOTE

@@ -1,0 +1,189 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    cpus: ${POSTGRES_CPUS:-1.0}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yingchuan}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_USER: ${POSTGRES_USER:-yingchuan}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [backend]
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-1g}
+    restart: unless-stopped
+    secrets: [postgres_password]
+    stop_grace_period: 60s
+    volumes:
+      - ${YINGCHUAN_DATA_ROOT:-/srv/yingchuan}/postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8-alpine
+    cpus: ${REDIS_CPUS:-0.5}
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning --user healthcheck --pass \"$$(sed -n 's/^user healthcheck on >\\([^ ]*\\).*/\\1/p' /run/secrets/redis_acl)\" ping",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [backend]
+    mem_limit: ${REDIS_MEMORY_LIMIT:-512m}
+    restart: unless-stopped
+    secrets: [redis_acl]
+    stop_grace_period: 30s
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ${YINGCHUAN_DATA_ROOT:-/srv/yingchuan}/redis:/data
+
+  migrate:
+    image: ${IMAGE_PREFIX:-ghcr.io/example/yingchuan}/migrate:${IMAGE_TAG:-latest}
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    networks: [backend]
+    profiles: [migration]
+    secrets: [database_url]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: ${IMAGE_PREFIX:-ghcr.io/example/yingchuan}/api:${IMAGE_TAG:-latest}
+    cpus: ${API_CPUS:-1.0}
+    environment:
+      ADMIN_ALLOWED_EMAILS: ${ADMIN_ALLOWED_EMAILS:-geyaovip@163.com}
+      AUTH_RATE_LIMIT_PREFIX: ${AUTH_RATE_LIMIT_PREFIX:-yingchuan:auth-rate}
+      AUTH_PEPPER_FILE: /run/secrets/auth_pepper
+      DATABASE_URL_FILE: /run/secrets/database_url
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MODEL_CREDENTIAL_KEY_VERSION: ${MODEL_CREDENTIAL_KEY_VERSION:-server-v1}
+      MODEL_CREDENTIAL_MASTER_KEY_FILE: /run/secrets/model_credential_master_key
+      NODE_ENV: production
+      NOTIFICATION_CREDENTIAL_KEY_VERSION: ${NOTIFICATION_CREDENTIAL_KEY_VERSION:-server-v1}
+      NOTIFICATION_CREDENTIAL_MASTER_KEY_FILE: /run/secrets/notification_credential_master_key
+      PORT: 3000
+      OPENCLAW_GATEWAY_TOKEN_FILE: /run/secrets/openclaw_gateway_token
+      OPENCLAW_GATEWAY_URL: http://openclaw-gateway:18789
+      OPENCLAW_RUNTIME_VERSION: 2026.7.1
+      PRIVATE_FILE_ROOT: /data/private
+      REDIS_URL_FILE: /run/secrets/redis_url
+      RESEND_API_KEY_FILE: /run/secrets/resend_api_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [backend]
+    mem_limit: ${API_MEMORY_LIMIT:-768m}
+    ports:
+      - "127.0.0.1:${API_BIND_PORT:-18080}:3000"
+    read_only: true
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    secrets:
+      [
+        auth_pepper,
+        database_url,
+        redis_url,
+        resend_api_key,
+        openclaw_gateway_token,
+        model_credential_master_key,
+        notification_credential_master_key,
+      ]
+    tmpfs: [/tmp]
+    volumes:
+      - ${YINGCHUAN_DATA_ROOT:-/srv/yingchuan}/private-files:/data/private
+
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:2026.7.1}
+    command:
+      - sh
+      - -lc
+      - >-
+        export OPENCLAW_GATEWAY_TOKEN="$$(cat /run/secrets/openclaw_gateway_token)";
+        exec node dist/index.js gateway --bind lan --port 18789
+    cpus: ${OPENCLAW_CPUS:-1.0}
+    environment:
+      OPENCLAW_DISABLE_BONJOUR: "1"
+    expose: ["18789"]
+    mem_limit: ${OPENCLAW_MEMORY_LIMIT:-1g}
+    networks: [backend, agent_egress]
+    read_only: true
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    secrets: [openclaw_gateway_token]
+    tmpfs: [/tmp]
+    volumes:
+      - openclaw_home:/home/node
+      - ./openclaw/openclaw.json:/home/node/.openclaw/openclaw.json:ro
+
+  worker:
+    image: ${IMAGE_PREFIX:-ghcr.io/example/yingchuan}/worker:${IMAGE_TAG:-latest}
+    cpus: ${WORKER_CPUS:-1.0}
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MODEL_CREDENTIAL_KEY_VERSION: ${MODEL_CREDENTIAL_KEY_VERSION:-server-v1}
+      MODEL_CREDENTIAL_MASTER_KEY_FILE: /run/secrets/model_credential_master_key
+      NODE_ENV: production
+      NOTIFICATION_CREDENTIAL_KEY_VERSION: ${NOTIFICATION_CREDENTIAL_KEY_VERSION:-server-v1}
+      NOTIFICATION_CREDENTIAL_MASTER_KEY_FILE: /run/secrets/notification_credential_master_key
+      PRIVATE_FILE_ROOT: /data/private
+      REDIS_URL_FILE: /run/secrets/redis_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [backend]
+    mem_limit: ${WORKER_MEMORY_LIMIT:-1g}
+    read_only: true
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    secrets:
+      [
+        database_url,
+        redis_url,
+        model_credential_master_key,
+        notification_credential_master_key,
+      ]
+    stop_grace_period: 60s
+    tmpfs: [/tmp]
+    volumes:
+      - ${YINGCHUAN_DATA_ROOT:-/srv/yingchuan}/private-files:/data/private
+
+networks:
+  backend:
+    internal: true
+  agent_egress: {}
+
+volumes:
+  openclaw_home:
+
+secrets:
+  auth_pepper:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/auth_pepper
+  database_url:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/database_url
+  postgres_password:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/postgres_password
+  redis_acl:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/redis_acl
+  redis_url:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/redis_url
+  resend_api_key:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/resend_api_key
+  openclaw_gateway_token:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/openclaw_gateway_token
+  model_credential_master_key:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/model_credential_master_key
+  notification_credential_master_key:
+    file: ${YINGCHUAN_SECRETS_ROOT:-/etc/yingchuan/secrets}/notification_credential_master_key

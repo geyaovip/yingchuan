@@ -1,0 +1,4 @@
+# Copy to /etc/yingchuan/secrets/redis_acl with mode 0600 and replace both values.
+user default off
+user healthcheck on >REPLACE_WITH_HEALTHCHECK_PASSWORD -@all +ping
+user yingchuan on >REPLACE_WITH_APPLICATION_PASSWORD ~* &* +@all

@@ -1,0 +1,47 @@
+{
+  "name": "@yingchuan/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@nestjs/common": "11.1.28",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/swagger": "^11.4.6",
+    "@yingchuan/analysis": "*",
+    "@yingchuan/database": "^0.1.0",
+    "@yingchuan/data-lifecycle": "*",
+    "@yingchuan/observability": "^0.1.0",
+    "@yingchuan/model-gateway": "*",
+    "@yingchuan/notifications": "*",
+    "@yingchuan/projects": "*",
+    "@yingchuan/prompts": "*",
+    "@yingchuan/reports": "*",
+    "@yingchuan/runtime-config": "^0.1.0",
+    "@yingchuan/scoring": "*",
+    "@yingchuan/shared-types": "*",
+    "pg": "^8.16.3",
+    "redis": "^6.1.0",
+    "reflect-metadata": "^0.2.2",
+    "resend": "6.18.0",
+    "rxjs": "^7.8.2",
+    "zod": "^4.3.6"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc-watch -p tsconfig.build.json --onSuccess \"node --env-file=../../.env --enable-source-maps dist/main.js\"",
+    "openapi:generate": "tsx src/generate-openapi.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build --workspace @yingchuan/database && vitest run --no-file-parallelism"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.1.28",
+    "@types/express": "^5.0.6",
+    "@types/pg": "^8.16.0",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.2.2",
+    "tsc-watch": "^7.2.1",
+    "tsx": "^4.21.0"
+  }
+}
