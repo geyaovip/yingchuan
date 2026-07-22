@@ -42,7 +42,7 @@
 - GitHub：目标仓库、GHCR package 写权限、受保护 `production` Environment，以及 `DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER`、`DEPLOY_SSH_PRIVATE_KEY`、`DEPLOY_SSH_HOST_KEY`；
 - Cloudflare：创建两个 Pages 项目、自定义域名，以及 `api.chatway.chat` 的 DNS-only 记录；
 - 共享服务器：只读盘点和部署 SSH 入口、宿主 Caddy 配置位置、允许使用的回环端口、数据盘路径与资源额度。
-- Resend：为发信域名完成 DNS 验证并提供生产 API Key；
+- Resend：`mail.chatway.chat` 已完成 DNS 验证和投递 smoke，域名限定生产 API Key 已保存到本机钥匙串；服务器就绪后写入 `/etc/yingchuan/secrets/resend_api_key`；
 - 火山方舟：提供账户 API Key，并在管理端逐一选择、探测和启用豆包、Kimi、GLM、DeepSeek 的当前 Model ID；
 - OpenClaw：允许拉取官方 GHCR 镜像，并确认 staging 验证后的 `2026.7.1` digest；
 - Telegram：后台上线后由白名单管理员填写 Bot Token/Chat ID 并发送测试消息。

@@ -11,7 +11,7 @@
 
 ## 2. 里程碑
 
-实现状态（2026-07-22）：E0–E11 已完成本地实现、专项测试与全量自动化回归；E0-S9 已包含 180 天正文清理、法律保留、私有文件一致性、幂等重试/死信与审计。GitHub 私有仓库与 CI、Cloudflare Pages Git 集成、`app.chatway.chat`/`admin.chatway.chat`、深层路由和 preview/生产 API 隔离已完成线上 smoke。P0 Release 仍需在共享服务器部署 API/Worker/OpenClaw，并在真实 Resend、火山方舟和 Telegram 环境完成 AC-019、AC-021、AC-022、AC-024 及外部 smoke test，不能用模拟结果替代上线验收。
+实现状态（2026-07-22）：E0–E11 已完成本地实现、专项测试与全量自动化回归；E0-S9 已包含 180 天正文清理、法律保留、私有文件一致性、幂等重试/死信与审计。GitHub 私有仓库与 CI、Cloudflare Pages Git 集成、`app.chatway.chat`/`admin.chatway.chat`、深层路由和 preview/生产 API 隔离已完成线上 smoke；Resend `mail.chatway.chat`、域名限定发信密钥和管理员邮箱投递 smoke 已通过。P0 Release 仍需在共享服务器部署 API/Worker/OpenClaw，并在真实火山方舟和 Telegram 环境完成 AC-019、AC-021、AC-022、AC-024 及外部 smoke test，不能用模拟结果替代上线验收。
 
 | 里程碑            | 包含        | 出口条件                                                       |
 | ----------------- | ----------- | -------------------------------------------------------------- |
