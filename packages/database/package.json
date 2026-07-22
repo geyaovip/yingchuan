@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.build.json",
-    "db:fixtures:test": "NODE_ENV=test tsx prisma/fixtures/test.ts",
+    "db:fixtures:test": "NODE_ENV=test prisma generate && NODE_ENV=test tsx prisma/fixtures/test.ts",
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
