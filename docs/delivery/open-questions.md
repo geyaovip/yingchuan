@@ -7,7 +7,7 @@
 这些是实施输入，不是产品决策；不得写入仓库或普通日志。
 
 - Resend：已在独立账户创建并验证 `mail.chatway.chat`，Cloudflare DNS 自动配置已生效；`yingchuan-production` API Key 仅有该域名的 Sending access，已保存到本机钥匙串并通过 `映川 <login@mail.chatway.chat>` 向管理员邮箱投递 smoke。共享服务器就绪后再直接写入服务端密钥文件；
-- 模型：火山方舟账户已确认开通豆包、Kimi、GLM、DeepSeek 四类模型且有可用额度；待共享服务器密钥路径就绪后生成映川专用 API Key，并记录实测通过的 Model ID；不需要其他原厂账户；
+- 模型：映川专用方舟 API Key 已创建并保存到本机钥匙串；豆包 `doubao-seed-2-1-turbo-260628`、GLM `glm-5-2-260617`、DeepSeek `deepseek-v4-pro-260425` 的 Responses API 已实测通过。Kimi-K2 当前快照已 Shutdown/Retiring 且不可调用，Kimi 配置保持禁用，等待方舟提供可用替代 Model ID；账户未开通 Web Search，因此四类配置均设 `nativeWebSearch=false`，不接外部搜索；
 - Cloudflare：`app.chatway.chat` 和 `admin.chatway.chat` 的 Pages、自定义域、生产变量与 preview 隔离已完成；Resend DNS 记录已自动配置并验证，`api.chatway.chat` 的 DNS-only 记录等待共享服务器公网 IP；
 - GitHub：私有仓库、`main` 分支和 CI 已完成；生产 Actions 环境等待共享服务器 SSH 信息与密钥；
 - 共享云服务器：系统版本、CPU/内存/磁盘、已有 Compose project/端口/反向代理规则、独立数据/备份目录与 SSH 管理方式；
@@ -18,10 +18,11 @@
 - D-013：已验证 Transactional Outbox、InboxReceipt、幂等 jobId、重试/死信和 reconciliation，并在 `decision-log.md` 固化；
 - D-014：已完成 Prompt/PromptVersion 拆表、不可变历史引用和数据库约束，并在 `decision-log.md` 固化；
 - 两个 Vite SPA 的 Pages 构建、客户端深层路由刷新、自定义域名和 preview/生产 API 隔离已通过线上 smoke；
+- 火山方舟密钥、模型列表、三类当前可用 Model ID、Responses API、Kimi 退役状态以及 Web Search `ToolNotOpen` 已完成真实账户验证；
 
 ## 仍需通过真实环境验证
 
-- 火山方舟账户下四类 Model ID 的可用性、Responses/Chat API 模式、内置 Web Search 兼容性、错误码和计费返回；
+- 方舟后续提供的可用 Kimi 替代 Model ID 及其 API 模式；
 - OpenClaw `v2026.7.1` 与 Agent Gateway 的 Skill/会话/审计适配；
 
 Spike 只允许确认实现细节；不得改变已接受的产品范围。如需改变，必须新增决策记录。

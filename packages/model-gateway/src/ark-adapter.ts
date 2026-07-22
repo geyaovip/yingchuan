@@ -82,6 +82,22 @@ export class VolcengineArkAdapter implements ModelProviderAdapter {
       );
     if (response.status === 429)
       return new ModelGatewayError("rate_limit", "PROVIDER_RATE_LIMITED", true);
+    if (
+      response.status === 404 &&
+      (text.includes("invalidendpointormodel.notfound") ||
+        text.includes("model or endpoint"))
+    )
+      return new ModelGatewayError(
+        "provider_unavailable",
+        "PROVIDER_MODEL_UNAVAILABLE",
+        false,
+      );
+    if (response.status === 404 && text.includes("toolnotopen"))
+      return new ModelGatewayError(
+        "provider_unavailable",
+        "PROVIDER_CAPABILITY_UNAVAILABLE",
+        false,
+      );
     if (response.status >= 500)
       return new ModelGatewayError(
         "provider_unavailable",
@@ -126,22 +142,7 @@ export class VolcengineArkAdapter implements ModelProviderAdapter {
         "PROVIDER_RESPONSE_INVALID",
         false,
       );
-    const citationsValue = Array.isArray(value.citations)
-      ? value.citations
-      : [];
-    const citations: ModelGatewayCitation[] = citationsValue.flatMap((item) => {
-      const citation = item as { title?: unknown; url?: unknown };
-      return typeof citation.url === "string"
-        ? [
-            {
-              url: citation.url,
-              ...(typeof citation.title === "string"
-                ? { title: citation.title }
-                : {}),
-            },
-          ]
-        : [];
-    });
+    const citations = this.citations(value, output);
     return {
       citations,
       inputTokens: this.number(usage.input_tokens ?? usage.prompt_tokens),
@@ -156,5 +157,48 @@ export class VolcengineArkAdapter implements ModelProviderAdapter {
     return typeof value === "number" && Number.isFinite(value)
       ? Math.max(0, Math.floor(value))
       : 0;
+  }
+
+  private citations(
+    value: Record<string, unknown>,
+    output: readonly unknown[],
+  ): ModelGatewayCitation[] {
+    const candidates: unknown[] = [];
+    if (Array.isArray(value.citations))
+      for (const citation of value.citations as unknown[])
+        candidates.push(citation);
+    for (const item of output) {
+      const content = (item as { content?: unknown }).content;
+      if (!Array.isArray(content)) continue;
+      for (const entry of content) {
+        const annotations = (entry as { annotations?: unknown }).annotations;
+        if (Array.isArray(annotations))
+          for (const annotation of annotations as unknown[])
+            candidates.push(annotation);
+      }
+    }
+
+    const byUrl = new Map<string, ModelGatewayCitation>();
+    for (const item of candidates) {
+      const candidate = item as {
+        title?: unknown;
+        url?: unknown;
+        url_citation?: { title?: unknown; url?: unknown };
+      };
+      const nested = candidate.url_citation;
+      const url = nested?.url ?? candidate.url;
+      const title = nested?.title ?? candidate.title;
+      if (typeof url !== "string" || url.length === 0) continue;
+      const existing = byUrl.get(url);
+      byUrl.set(url, {
+        url,
+        ...(typeof title === "string" && title.length > 0
+          ? { title }
+          : existing?.title
+            ? { title: existing.title }
+            : {}),
+      });
+    }
+    return [...byUrl.values()];
   }
 }

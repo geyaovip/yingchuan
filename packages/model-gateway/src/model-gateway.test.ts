@@ -75,6 +75,30 @@ describe("VolcengineArkAdapter", () => {
     },
   );
 
+  it.each([
+    ["InvalidEndpointOrModel.NotFound", "PROVIDER_MODEL_UNAVAILABLE"],
+    ["ToolNotOpen", "PROVIDER_CAPABILITY_UNAVAILABLE"],
+  ] as const)(
+    "maps Ark 404 %s to a non-retryable actionable code",
+    async (providerCode, expectedCode) => {
+      const adapter = new VolcengineArkAdapter(
+        vi.fn<typeof fetch>().mockResolvedValue(
+          new Response(JSON.stringify({ error: { code: providerCode } }), {
+            status: 404,
+          }),
+        ),
+      );
+      const caught = await adapter
+        .invoke(request, "credential-value")
+        .catch((error: unknown) => error);
+      expect(caught).toMatchObject({
+        category: "provider_unavailable",
+        code: expectedCode,
+        retryable: false,
+      });
+    },
+  );
+
   it("passes native web configuration only when explicitly enabled", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
@@ -101,5 +125,51 @@ describe("VolcengineArkAdapter", () => {
       tools: unknown[];
     };
     expect(body.tools).toEqual([{ type: "web_search" }]);
+  });
+
+  it("extracts and deduplicates Responses API URL citations", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          citations: [{ title: "顶层标题", url: "https://example.com/a" }],
+          id: "ark-response-1",
+          output: [
+            {
+              content: [
+                {
+                  annotations: [
+                    {
+                      title: "更新后的标题",
+                      type: "url_citation",
+                      url: "https://example.com/a",
+                    },
+                    {
+                      type: "url_citation",
+                      url_citation: {
+                        title: "第二来源",
+                        url: "https://example.com/b",
+                      },
+                    },
+                  ],
+                  text: "带来源的回答",
+                  type: "output_text",
+                },
+              ],
+              type: "message",
+            },
+          ],
+          usage: { input_tokens: 5, output_tokens: 8 },
+        }),
+        { status: 200 },
+      ),
+    );
+    const result = await new VolcengineArkAdapter(fetcher).invoke(
+      { ...request, apiMode: "responses" },
+      "credential-value",
+    );
+    expect(result.citations).toEqual([
+      { title: "更新后的标题", url: "https://example.com/a" },
+      { title: "第二来源", url: "https://example.com/b" },
+    ]);
   });
 });
