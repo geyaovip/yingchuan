@@ -4,10 +4,10 @@
 
 创建两个 Pages 项目并连接同一 GitHub 仓库。均使用仓库根目录作为 Root directory，避免 npm workspace 依赖缺失。
 
-| 项目              | 构建命令                                     | 输出目录          | 生产域名             |
-| ----------------- | -------------------------------------------- | ----------------- | -------------------- |
-| `yingchuan-web`   | `npm run build --workspace @yingchuan/web`   | `apps/web/dist`   | `app.chatway.chat`   |
-| `yingchuan-admin` | `npm run build --workspace @yingchuan/admin` | `apps/admin/dist` | `admin.chatway.chat` |
+| 项目              | 构建命令              | 输出目录          | 生产域名             |
+| ----------------- | --------------------- | ----------------- | -------------------- |
+| `yingchuan-web`   | `npm run build:web`   | `apps/web/dist`   | `app.chatway.chat`   |
+| `yingchuan-admin` | `npm run build:admin` | `apps/admin/dist` | `admin.chatway.chat` |
 
 两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL=https://api.chatway.chat`；客户端会自行追加 `/api/v1`。Preview 环境只能使用独立 staging API；未提供 staging 时留空，禁止连接生产 API。Web watch path 使用 `apps/web/*, packages/ui/*, packages/shared-types/*, package.json, package-lock.json`；Admin 对应替换为 `apps/admin/*`。
 
