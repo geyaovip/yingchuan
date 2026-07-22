@@ -16,6 +16,12 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "NODE_ENV",
+        "REDIS_URL",
+        "TEST_DATABASE_URL"
+      ],
       "outputs": []
     }
   }
