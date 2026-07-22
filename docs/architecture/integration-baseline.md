@@ -61,6 +61,7 @@ ModelRun 保存最终地域快照和注入方式，使不同模型在同一条�
 
 - Cloudflare 只承载 Web/Admin 两个静态站点；不使用 Workers、Pages Functions、R2、KV、D1、Queues 或其他服务端能力。
 - 两个 Vite + React SPA 构建目录为 `dist/`，使用客户端路由和 Pages SPA fallback，验证 `/projects/:id` 等深层路由直接访问/刷新。
+- Pages 必须从仓库根目录执行 `npm run build:web` / `npm run build:admin`，输出目录分别为 `apps/web/dist` / `apps/admin/dist`。这两个入口会先构建 workspace 依赖，不能直接运行单个应用 workspace 的 `build`。
 - Pages 通过 GitHub 集成构建并提供预览部署；GitHub Actions 继续负责 lint、typecheck、test 和静态构建检查。
 - 所有动态数据通过浏览器请求云服务器 API。前端只能包含公开 API 基址，不得嵌入 Resend、模型、Telegram、数据库或部署密钥。
 - 生产自定义域名为 `app.chatway.chat`、`admin.chatway.chat`，后端为 `api.chatway.chat`。端到端测试必须使用自定义域名验证 Session Cookie、CORS 和 CSRF。`api` 子域初期使用 Cloudflare DNS-only 记录直指云服务器，TLS 在 Caddy/Let's Encrypt 终止。

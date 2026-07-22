@@ -18,6 +18,8 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:admin": "turbo run build --filter=@yingchuan/admin",
+    "build:web": "turbo run build --filter=@yingchuan/web",
     "db:fixtures:test": "npm run db:fixtures:test --workspace @yingchuan/database",
     "db:generate": "npm run db:generate --workspace @yingchuan/database",
     "db:migrate:dev": "npm exec --workspace @yingchuan/database -- prisma migrate dev",
