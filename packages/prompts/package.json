@@ -13,7 +13,7 @@
   "dependencies": {
     "@yingchuan/database": "*",
     "@yingchuan/observability": "*",
-    "uuid": "^11.1.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "typescript": "5.9.3",
