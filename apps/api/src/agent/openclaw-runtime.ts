@@ -16,6 +16,14 @@ export interface OpenClawRuntime {
   ): Promise<{ answer: string; inputTokens: number; outputTokens: number }>;
 }
 
+export function assertOutputTokenBudget(
+  result: { readonly outputTokens: number },
+  outputTokenBudget: number,
+): void {
+  if (result.outputTokens > outputTokenBudget)
+    throw new Error("AGENT_BUDGET_EXCEEDED");
+}
+
 export class OpenClawHttpRuntime implements OpenClawRuntime {
   constructor(
     private readonly endpoint: string,

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OpenClawHttpRuntime } from "./openclaw-runtime.js";
+import {
+  assertOutputTokenBudget,
+  OpenClawHttpRuntime,
+} from "./openclaw-runtime.js";
 
 describe("OpenClaw HTTP runtime", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -66,5 +69,14 @@ describe("OpenClaw HTTP runtime", () => {
         800,
       ),
     ).rejects.toThrow("OPENCLAW_UNAVAILABLE");
+  });
+
+  it("applies the generation budget to output tokens, not runtime prompt overhead", () => {
+    expect(() =>
+      assertOutputTokenBudget({ outputTokens: 595 }, 1_500),
+    ).not.toThrow();
+    expect(() =>
+      assertOutputTokenBudget({ outputTokens: 1_501 }, 1_500),
+    ).toThrow("AGENT_BUDGET_EXCEEDED");
   });
 });

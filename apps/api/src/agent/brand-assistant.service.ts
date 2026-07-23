@@ -13,6 +13,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import type { AuthenticatedSession } from "../auth/auth.types.js";
 import {
+  assertOutputTokenBudget,
   OPENCLAW_VERSION,
   type OpenClawRuntime,
   type RuntimeEvidence,
@@ -107,8 +108,7 @@ export class BrandAssistantService {
         15_000,
         tokenBudget,
       );
-      if (result.inputTokens + result.outputTokens > tokenBudget)
-        throw new Error("AGENT_BUDGET_EXCEEDED");
+      assertOutputTokenBudget(result, tokenBudget);
 
       return this.serialize(
         await this.database.agentRun.update({
