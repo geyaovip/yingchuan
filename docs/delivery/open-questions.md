@@ -19,10 +19,10 @@
 - D-014：已完成 Prompt/PromptVersion 拆表、不可变历史引用和数据库约束，并在 `decision-log.md` 固化；
 - 两个 Vite SPA 的 Pages 构建、客户端深层路由刷新、自定义域名和 preview/生产 API 隔离已通过线上 smoke；
 - 火山方舟密钥、模型列表、三类当前可用 Model ID、Responses API、Kimi 服务开通状态与生产 Key 权限范围差异，以及 Web Search `ToolNotOpen` 已完成真实账户验证；管理端已支持保存模型运行参数后执行真实低成本探测，探测结果、调用日志与审计日志均已验证；
+- OpenClaw `v2026.7.1` 已通过用户品牌管家和管理端运营助手的真实生产问答；Skill 调用、租户/管理员会话、引用、Token、模型调用记录和审计链路均已验证。生产实测模型正常响应约 16–18 秒，Agent 应用超时已调整为 60 秒；
 
 ## 仍需通过真实环境验证
 
 - 是否允许把生产 Key `yingchuan-production` 从自定义 Model ID 范围扩大为“全部”；当前控制台无法在自定义范围中单独选择 Kimi，未经批准不得扩大权限；
-- OpenClaw `v2026.7.1` 生产 Gateway 已健康运行；仍需在真实运营任务中复核完整 Skill/会话/审计链路；
 
 Spike 只允许确认实现细节；不得改变已接受的产品范围。如需改变，必须新增决策记录。

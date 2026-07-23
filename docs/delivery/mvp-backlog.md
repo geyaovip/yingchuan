@@ -11,7 +11,7 @@
 
 ## 2. 里程碑
 
-实现状态（2026-07-23）：E0–E11 已完成实现、专项测试与全量自动化回归；E0-S9 已包含 180 天正文清理、法律保留、私有文件一致性、幂等重试/死信与审计。Cloudflare Pages、自定义前端域名和 preview/生产 API 隔离已完成线上 smoke；共享服务器上的独立 API/Worker/PostgreSQL/Redis/OpenClaw/Caddy 栈已上线，`api.chatway.chat` 的 HTTPS、ready、精确 CORS、Resend 验证码、管理员登录/会话/CSRF 退出均通过真实链路验证。火山方舟生产 Provider 已写入加密凭证并启用豆包、GLM、DeepSeek 三类 Responses Model ID；管理端已支持完整运行参数维护和真实低成本探测。新版方舟控制台显示 Kimi-K2 服务已开通并列出三组 Model ID，但生产自定义 Key 的权限范围未包含 Kimi，三组 Responses 及最新模型 Chat Completions 的生产探测均失败，因此保持禁用。账户未开通 Web Search，联网组合按规则跳过。P0 Release 剩余外部验收仅包括管理员提供 Telegram Bot Token/Chat ID 后的真实发送，以及管理员批准扩大方舟 Key 权限或控制台允许单独授权 Kimi 后的成功探测；不能用模拟结果替代。
+实现状态（2026-07-23）：E0–E11 已完成实现、专项测试与全量自动化回归；E0-S9 已包含 180 天正文清理、法律保留、私有文件一致性、幂等重试/死信与审计。Cloudflare Pages、自定义前端域名和 preview/生产 API 隔离已完成线上 smoke；共享服务器上的独立 API/Worker/PostgreSQL/Redis/OpenClaw/Caddy 栈已上线，`api.chatway.chat` 的 HTTPS、ready、精确 CORS、Resend 验证码、用户/管理员独立长期会话及退出均通过真实链路验证。火山方舟生产 Provider 已写入加密凭证并启用豆包、GLM、DeepSeek 三类 Responses Model ID；管理端已支持完整运行参数维护和真实低成本探测。OpenClaw 用户品牌管家与管理端运营助手已完成真实生产问答，Skill、引用、Token、模型调用和审计链路均成功；应用超时已按生产延迟调整为 60 秒。新版方舟控制台显示 Kimi-K2 服务已开通并列出三组 Model ID，但生产自定义 Key 的权限范围未包含 Kimi，三组 Responses 及最新模型 Chat Completions 的生产探测均失败，因此保持禁用。账户未开通 Web Search，联网组合按规则跳过。P0 Release 剩余外部验收仅包括管理员提供 Telegram Bot Token/Chat ID 后的真实发送，以及管理员批准扩大方舟 Key 权限或控制台允许单独授权 Kimi 后的成功探测；不能用模拟结果替代。
 
 | 里程碑            | 包含        | 出口条件                                                       |
 | ----------------- | ----------- | -------------------------------------------------------------- |
