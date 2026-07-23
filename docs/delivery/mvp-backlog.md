@@ -11,7 +11,7 @@
 
 ## 2. 里程碑
 
-实现状态（2026-07-22）：E0–E11 已完成本地实现、专项测试与全量自动化回归；E0-S9 已包含 180 天正文清理、法律保留、私有文件一致性、幂等重试/死信与审计。GitHub 私有仓库与 CI、Cloudflare Pages Git 集成、`app.chatway.chat`/`admin.chatway.chat`、深层路由和 preview/生产 API 隔离已完成线上 smoke；Resend `mail.chatway.chat`、域名限定发信密钥和管理员邮箱投递 smoke 已通过；方舟专用密钥及豆包、GLM、DeepSeek 三类当前 Model ID 的 Responses API 已通过真实调用。Kimi 当前 ID 已退役/退役中而保持禁用，账户未开通 Web Search，联网组合按已确认规则跳过。P0 Release 仍需在共享服务器部署 API/Worker/OpenClaw，并在真实 Telegram 环境完成 AC-019、AC-021、AC-022、AC-024 及外部 smoke test，不能用模拟结果替代上线验收。
+实现状态（2026-07-23）：E0–E11 已完成实现、专项测试与全量自动化回归；E0-S9 已包含 180 天正文清理、法律保留、私有文件一致性、幂等重试/死信与审计。Cloudflare Pages、自定义前端域名和 preview/生产 API 隔离已完成线上 smoke；共享服务器上的独立 API/Worker/PostgreSQL/Redis/OpenClaw/Caddy 栈已上线，`api.chatway.chat` 的 HTTPS、ready、精确 CORS、Resend 验证码、管理员登录/会话/CSRF 退出均通过真实链路验证。火山方舟生产 Provider 已写入加密凭证并启用豆包、GLM、DeepSeek 三类当前 Responses Model ID；Kimi 当前 ID 已退役而保持禁用，账户未开通 Web Search，联网组合按规则跳过。P0 Release 剩余外部验收仅包括管理员提供 Telegram Bot Token/Chat ID 后的真实发送，以及可用 Kimi 替代 Model ID 后的补充探测；不能用模拟结果替代。
 
 | 里程碑            | 包含        | 出口条件                                                       |
 | ----------------- | ----------- | -------------------------------------------------------------- |

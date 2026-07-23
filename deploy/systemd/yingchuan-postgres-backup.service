@@ -1,0 +1,14 @@
+[Unit]
+Description=Yingchuan PostgreSQL backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/yingchuan/deploy/scripts/backup-postgres.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/yingchuan/backups/postgres
+UMask=0077

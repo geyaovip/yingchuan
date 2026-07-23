@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Yingchuan PostgreSQL backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 UTC
+Persistent=true
+RandomizedDelaySec=30m
+Unit=yingchuan-postgres-backup.service
+
+[Install]
+WantedBy=timers.target

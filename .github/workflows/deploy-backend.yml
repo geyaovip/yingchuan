@@ -62,7 +62,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 0755 /opt/yingchuan/deploy'
-          scp -i "$RUNNER_TEMP/ssh/key" -P "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -r deploy/compose.production.yaml deploy/caddy deploy/openclaw deploy/redis "$DEPLOY_USER@$DEPLOY_HOST:/opt/yingchuan/deploy/"
+          scp -i "$RUNNER_TEMP/ssh/key" -P "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -r deploy/compose.production.yaml deploy/caddy deploy/openclaw deploy/redis deploy/scripts deploy/systemd "$DEPLOY_USER@$DEPLOY_HOST:/opt/yingchuan/deploy/"
       - name: Migrate and roll out isolated services
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -77,6 +77,10 @@ jobs:
           cd /opt/yingchuan
           export COMPOSE_PROJECT_NAME=yingchuan
           export DOCKER_CONFIG=/opt/yingchuan/.docker
+          sudo install -m 0644 deploy/systemd/yingchuan-postgres-backup.service /etc/systemd/system/yingchuan-postgres-backup.service
+          sudo install -m 0644 deploy/systemd/yingchuan-postgres-backup.timer /etc/systemd/system/yingchuan-postgres-backup.timer
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now yingchuan-postgres-backup.timer
           openclaw_image=$(sed -n 's/^OPENCLAW_IMAGE=//p' /etc/yingchuan/production.env | tail -n 1)
           if ! printf '%s' "$openclaw_image" | grep -Eq '^ghcr\.io/openclaw/openclaw:2026\.7\.1@sha256:[0-9a-f]{64}$'; then
             echo 'OPENCLAW_IMAGE must pin official 2026.7.1 by sha256 digest.' >&2

@@ -35,7 +35,7 @@
 
 ### 备份与恢复演练
 
-使用 root 或专用备份账户通过 systemd timer 每日执行 `deploy/scripts/backup-postgres.sh`，输出自带 SHA-256 校验的自定义格式备份。至少每月对一份明确的备份执行 `deploy/scripts/verify-restore.sh /srv/yingchuan/backups/postgres/<file>.dump`；脚本只创建并删除固定的 `yingchuan_restore_verify` 数据库，不修改生产库。当前备份仍与服务器同机，不能覆盖整机或磁盘损坏风险。
+`yingchuan-postgres-backup.timer` 每日 03:20 UTC 执行 `deploy/scripts/backup-postgres.sh`，并在 30 分钟内随机错峰；输出是带 SHA-256 校验的自定义格式备份。至少每月对一份明确的备份执行 `deploy/scripts/verify-restore.sh /srv/yingchuan/backups/postgres/<file>.dump`；脚本只创建并删除固定的 `yingchuan_restore_verify` 数据库，不修改生产库。当前备份仍与服务器同机，不能覆盖整机或磁盘损坏风险。
 
 ## 外部授权清单
 
@@ -43,6 +43,6 @@
 - Cloudflare：两个 Pages 项目、自定义域名和 `api.chatway.chat` 的 DNS-only A 记录均已完成；
 - 共享服务器：已完成只读盘点、映川专用部署密钥、独立目录和受限资源配置；
 - Resend：`mail.chatway.chat` 已完成 DNS 验证和投递 smoke，域名限定生产 API Key 已写入 `/etc/yingchuan/secrets/resend_api_key`；
-- 火山方舟：提供账户 API Key，并在管理端逐一选择、探测和启用豆包、Kimi、GLM、DeepSeek 的当前 Model ID；
+- 火山方舟：生产加密凭据与 Provider 已配置；豆包、GLM、DeepSeek 已启用，Kimi 等待方舟提供可用替代 Model ID；
 - OpenClaw：允许拉取官方 GHCR 镜像，并确认 staging 验证后的 `2026.7.1` digest；
 - Telegram：后台上线后由白名单管理员填写 Bot Token/Chat ID 并发送测试消息。
