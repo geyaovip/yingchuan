@@ -288,6 +288,8 @@ function AdminShell({ session }: { readonly session: SessionView }) {
       userEmail={session.email}
     >
       <Routes>
+        <Route path="/" element={<Navigate replace to="/admin" />} />
+        <Route path="/dashboard" element={<Navigate replace to="/admin" />} />
         <Route path="/admin" element={<AdminHome />} />
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/workspaces" element={<AdminUsers />} />

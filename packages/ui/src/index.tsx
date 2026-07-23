@@ -14,6 +14,7 @@ import {
   BrainCircuit,
   Building2,
   ChartNoAxesCombined,
+  ChevronUp,
   Circle,
   CircleAlert,
   CircleCheck,
@@ -21,10 +22,12 @@ import {
   Info,
   LayoutDashboard,
   ListTodo,
+  LogOut,
   Menu,
   RefreshCcw,
   ScrollText,
   Settings,
+  UserRound,
   UsersRound,
   X,
   type LucideIcon,
@@ -70,8 +73,10 @@ export interface WorkspaceOption {
 }
 
 export interface AppShellProps extends PropsWithChildren {
+  readonly accountHref?: string;
   readonly activeHref: string;
   readonly brand?: string;
+  readonly brandHref?: string;
   readonly navigation: readonly NavigationItem[];
   readonly onLogout?: () => void;
   readonly projectNavigation?: readonly NavigationItem[];
@@ -83,8 +88,10 @@ export interface AppShellProps extends PropsWithChildren {
 }
 
 export function AppShell({
+  accountHref,
   activeHref,
   brand = "映川",
+  brandHref,
   children,
   navigation,
   onLogout,
@@ -95,9 +102,43 @@ export function AppShell({
   workspaceId,
   workspaces = [],
 }: AppShellProps) {
+  const resolvedBrandHref = brandHref ?? navigation[0]?.href ?? "/dashboard";
+  const [accountOpen, setAccountOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    accountMenuRef.current
+      ?.querySelector<HTMLElement>("a[href], button:not([disabled])")
+      ?.focus();
+
+    const close = (restoreFocus = false) => {
+      setAccountOpen(false);
+      if (restoreFocus) accountTriggerRef.current?.focus();
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        !event.target.closest("[data-yc-account-menu]")
+      )
+        close();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close(true);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountOpen]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -162,14 +203,34 @@ export function AppShell({
             <Menu aria-hidden="true" size={21} strokeWidth={1.8} />
           )}
         </button>
-        <a className="yc-brand yc-brand--mobile" href="/dashboard">
+        <a className="yc-brand yc-brand--mobile" href={resolvedBrandHref}>
           <span className="yc-brand__mark">映</span>
           {brand}
         </a>
-        <span className="yc-avatar" title={userEmail}>
-          {userEmail?.slice(0, 1).toUpperCase() ?? "用"}
-        </span>
+        <button
+          aria-expanded={accountOpen}
+          aria-haspopup="menu"
+          aria-label="打开账号菜单"
+          className="yc-mobile-account-trigger"
+          data-yc-account-menu
+          onClick={(event) => {
+            accountTriggerRef.current = event.currentTarget;
+            setAccountOpen((open) => !open);
+          }}
+          type="button"
+        >
+          <span className="yc-avatar" aria-hidden="true">
+            {userEmail?.slice(0, 1).toUpperCase() ?? "用"}
+          </span>
+        </button>
       </header>
+      {accountOpen && (
+        <AccountMenu
+          accountHref={accountHref}
+          menuRef={accountMenuRef}
+          onLogout={onLogout}
+        />
+      )}
       {menuOpen && (
         <button
           aria-label="关闭导航遮罩"
@@ -183,7 +244,7 @@ export function AppShell({
         className={`yc-sidebar${menuOpen ? " is-open" : ""}`}
         ref={sidebarRef}
       >
-        <a className="yc-brand" href="/dashboard">
+        <a className="yc-brand" href={resolvedBrandHref}>
           <span className="yc-brand__mark">映</span>
           {brand}
         </a>
@@ -208,23 +269,31 @@ export function AppShell({
           items={navigation}
           onNavigate={() => setMenuOpen(false)}
         />
-        <div className="yc-sidebar__footer">
-          <span className="yc-avatar" aria-hidden="true">
-            {userEmail?.slice(0, 1).toUpperCase() ?? "用"}
-          </span>
-          <span className="yc-sidebar__identity">
-            <strong>{userEmail ? "已登录" : "访客"}</strong>
-            <small>{userEmail ?? "请登录以继续"}</small>
-          </span>
-          {onLogout && (
-            <button
-              className="yc-sidebar__logout"
-              onClick={onLogout}
-              type="button"
-            >
-              退出登录
-            </button>
-          )}
+        <div className="yc-sidebar__account" data-yc-account-menu>
+          <button
+            aria-expanded={accountOpen}
+            aria-haspopup="menu"
+            className="yc-account-trigger"
+            onClick={(event) => {
+              accountTriggerRef.current = event.currentTarget;
+              setAccountOpen((open) => !open);
+            }}
+            type="button"
+          >
+            <span className="yc-avatar" aria-hidden="true">
+              {userEmail?.slice(0, 1).toUpperCase() ?? "用"}
+            </span>
+            <span className="yc-sidebar__identity">
+              <strong>{userEmail ? "已登录" : "访客"}</strong>
+              <small>{userEmail ?? "请登录以继续"}</small>
+            </span>
+            <ChevronUp
+              aria-hidden="true"
+              className="yc-account-trigger__chevron"
+              size={15}
+              strokeWidth={1.8}
+            />
+          </button>
         </div>
       </aside>
       <div className="yc-app-shell__body">
@@ -248,6 +317,39 @@ export function AppShell({
           {children}
         </main>
       </div>
+    </div>
+  );
+}
+
+function AccountMenu({
+  accountHref,
+  menuRef,
+  onLogout,
+}: {
+  readonly accountHref?: string;
+  readonly menuRef: React.RefObject<HTMLDivElement | null>;
+  readonly onLogout?: () => void;
+}) {
+  return (
+    <div
+      aria-label="账号菜单"
+      className="yc-account-menu"
+      data-yc-account-menu
+      ref={menuRef}
+      role="menu"
+    >
+      {accountHref && (
+        <a href={accountHref} role="menuitem">
+          <UserRound aria-hidden="true" size={16} strokeWidth={1.8} />
+          账号设置
+        </a>
+      )}
+      {onLogout && (
+        <button onClick={onLogout} role="menuitem" type="button">
+          <LogOut aria-hidden="true" size={16} strokeWidth={1.8} />
+          退出登录
+        </button>
+      )}
     </div>
   );
 }

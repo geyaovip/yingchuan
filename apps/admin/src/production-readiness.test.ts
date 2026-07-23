@@ -5,6 +5,12 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
 describe("admin production route contract", () => {
+  it("redirects shared shell home links to the admin dashboard", () => {
+    expect(source).toContain(
+      '<Route path="/dashboard" element={<Navigate replace to="/admin" />} />',
+    );
+  });
+
   it("does not expose development preview sessions or construction placeholders", () => {
     expect(source).not.toContain("previewSession");
     expect(source).not.toContain("模块建设中");

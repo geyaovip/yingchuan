@@ -398,6 +398,7 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
       : [];
   return (
     <AppShell
+      accountHref="/settings"
       activeHref={location.pathname}
       navigation={mainNavigation}
       onLogout={() => {
@@ -414,6 +415,7 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
       workspaces={shellWorkspaces}
     >
       <Routes>
+        <Route path="/" element={<Navigate replace to="/dashboard" />} />
         <Route
           path="/dashboard"
           element={
