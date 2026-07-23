@@ -24,14 +24,14 @@
 - 能力以“具体 Model ID + API 模式 + 当前账户权限”实测为准，不因 Kimi/GLM/DeepSeek 原厂提供联网就假设火山托管版同样可用。`nativeWebSearch=false` 时跳过该联网组合，非联网 Prompt 仍正常运行。
 - 火山方舟成为 P0 的单一外部模型故障域：单个 Model ID 失败只影响对应 Run；账户、API Key、配额或区域级故障可影响全部四类模型。P0 不自动切到原厂 API，只做部分成功、明确报错和人工恢复。
 
-2026-07-22 账户实测快照（运行时仍以后续管理端探测为准）：
+2026-07-23 账户实测快照（运行时仍以后续管理端探测为准）：
 
-| 模型族   | Model ID                       | API 模式  | 结果                                                                                            |
-| -------- | ------------------------------ | --------- | ----------------------------------------------------------------------------------------------- |
-| 豆包     | `doubao-seed-2-1-turbo-260628` | Responses | 基础调用通过；账户未开通 Web Search，`nativeWebSearch=false`                                    |
-| GLM      | `glm-5-2-260617`               | Responses | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                            |
-| DeepSeek | `deepseek-v4-pro-260425`       | Responses | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                            |
-| Kimi     | 无当前可用 ID                  | 禁用      | `kimi-k2-250711` 已 Shutdown，后续 K2 版本为 Retiring 且实际调用无权限，等待方舟提供可用替代 ID |
+| 模型族   | Model ID                       | API 模式  | 结果                                                                                                                                          |
+| -------- | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 豆包     | `doubao-seed-2-1-turbo-260628` | Responses | 基础调用通过；账户未开通 Web Search，`nativeWebSearch=false`                                                                                  |
+| GLM      | `glm-5-2-260617`               | Responses | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                                                                          |
+| DeepSeek | `deepseek-v4-pro-260425`       | Responses | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                                                                          |
+| Kimi     | 无当前可用 ID                  | 禁用      | 模型广场有 Kimi-K2 详情页，但体验中心与预置推理列表无 Kimi；`kimi-k2`、`kimi-k2-250711` 标准 API 实测均返回 `InvalidEndpointOrModel.NotFound` |
 
 映川专用方舟 Key 仅授权 Model ID 范围并保存在本机钥匙串；共享服务器就绪后写入服务端密钥系统。账户未开通 Web Search 时不购买或调用其他搜索能力，所有需要联网的组合按 unsupported 跳过。
 
