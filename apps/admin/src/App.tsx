@@ -30,6 +30,7 @@ interface AuditRow {
 
 interface ModelVersion {
   readonly apiMode: "responses" | "chat_completions";
+  readonly contextWindow?: number | null;
   readonly inputPriceMicrosPerMillion: string | null;
   readonly maxConcurrency: number;
   readonly modelCode: string;
@@ -559,6 +560,7 @@ function ModelManagement() {
               <ModelConfigForm
                 busy={busy}
                 config={selected}
+                key={selected.id}
                 onProbe={() =>
                   execute(() =>
                     api.request<ModelProbeResult>(
@@ -637,26 +639,66 @@ function ModelConfigForm({
   readonly onSave: (body: Record<string, unknown>) => Promise<void>;
 }) {
   const version = config.versions[0]!;
+  const [displayName, setDisplayName] = useState(config.displayName);
   const [modelCode, setModelCode] = useState(version.modelCode);
+  const [apiMode, setApiMode] = useState(version.apiMode);
+  const [contextWindow, setContextWindow] = useState(
+    version.contextWindow?.toString() ?? "",
+  );
+  const [inputPrice, setInputPrice] = useState(
+    version.inputPriceMicrosPerMillion ?? "0",
+  );
+  const [outputPrice, setOutputPrice] = useState(
+    version.outputPriceMicrosPerMillion ?? "0",
+  );
+  const [maxConcurrency, setMaxConcurrency] = useState(
+    version.maxConcurrency.toString(),
+  );
+  const [timeoutMs, setTimeoutMs] = useState(version.timeoutMs.toString());
   const [nativeWebSearch, setNativeWebSearch] = useState(
     version.nativeWebSearch,
   );
   const [probeResult, setProbeResult] = useState<ModelProbeResult>();
   const body = (status: ModelConfig["status"]) => ({
-    apiMode: version.apiMode,
-    displayName: config.displayName,
-    inputPriceMicrosPerMillion: version.inputPriceMicrosPerMillion ?? "0",
-    maxConcurrency: version.maxConcurrency,
+    apiMode,
+    ...(contextWindow ? { contextWindow: Number(contextWindow) } : {}),
+    displayName,
+    inputPriceMicrosPerMillion: inputPrice,
+    maxConcurrency: Number(maxConcurrency),
     modelCode,
     nativeWebSearch,
-    outputPriceMicrosPerMillion: version.outputPriceMicrosPerMillion ?? "0",
+    outputPriceMicrosPerMillion: outputPrice,
     status,
-    timeoutMs: version.timeoutMs,
+    timeoutMs: Number(timeoutMs),
     ...(nativeWebSearch ? { webSearchConfig: { type: "web_search" } } : {}),
   });
+  const valid =
+    Boolean(displayName.trim() && modelCode.trim()) &&
+    Number(maxConcurrency) >= 1 &&
+    Number(timeoutMs) >= 1_000 &&
+    (!contextWindow || Number(contextWindow) > 0) &&
+    /^\d+$/.test(inputPrice) &&
+    /^\d+$/.test(outputPrice);
+  const dirty =
+    displayName !== config.displayName ||
+    modelCode !== version.modelCode ||
+    apiMode !== version.apiMode ||
+    contextWindow !== (version.contextWindow?.toString() ?? "") ||
+    inputPrice !== (version.inputPriceMicrosPerMillion ?? "0") ||
+    outputPrice !== (version.outputPriceMicrosPerMillion ?? "0") ||
+    maxConcurrency !== version.maxConcurrency.toString() ||
+    timeoutMs !== version.timeoutMs.toString() ||
+    nativeWebSearch !== version.nativeWebSearch;
   return (
     <section className="yc-card yc-section-card yc-form-card" key={config.id}>
       <h2>配置 {config.modelFamily}</h2>
+      <FormField label="显示名称">
+        <input
+          maxLength={100}
+          onChange={(event) => setDisplayName(event.target.value)}
+          value={displayName}
+        />
+      </FormField>
       <FormField
         hint="从当前方舟账户控制台选择，不根据品牌名猜测。"
         label="Model ID / Endpoint ID"
@@ -664,6 +706,70 @@ function ModelConfigForm({
         <input
           onChange={(event) => setModelCode(event.target.value)}
           value={modelCode}
+        />
+      </FormField>
+      <FormField label="API 模式">
+        <select
+          onChange={(event) =>
+            setApiMode(event.target.value as "responses" | "chat_completions")
+          }
+          value={apiMode}
+        >
+          <option value="responses">Responses</option>
+          <option value="chat_completions">Chat Completions</option>
+        </select>
+      </FormField>
+      <FormField hint="例如 256000；未知时可留空。" label="上下文窗口">
+        <input
+          inputMode="numeric"
+          min={1}
+          onChange={(event) => setContextWindow(event.target.value)}
+          type="number"
+          value={contextWindow}
+        />
+      </FormField>
+      <FormField
+        hint="1 元 = 1,000,000 微元。"
+        label="输入价格（微元/百万 Token）"
+      >
+        <input
+          inputMode="numeric"
+          min={0}
+          onChange={(event) => setInputPrice(event.target.value)}
+          type="number"
+          value={inputPrice}
+        />
+      </FormField>
+      <FormField
+        hint="1 元 = 1,000,000 微元。"
+        label="输出价格（微元/百万 Token）"
+      >
+        <input
+          inputMode="numeric"
+          min={0}
+          onChange={(event) => setOutputPrice(event.target.value)}
+          type="number"
+          value={outputPrice}
+        />
+      </FormField>
+      <FormField label="最大并发">
+        <input
+          inputMode="numeric"
+          max={100}
+          min={1}
+          onChange={(event) => setMaxConcurrency(event.target.value)}
+          type="number"
+          value={maxConcurrency}
+        />
+      </FormField>
+      <FormField label="超时（毫秒）">
+        <input
+          inputMode="numeric"
+          max={300000}
+          min={1000}
+          onChange={(event) => setTimeoutMs(event.target.value)}
+          type="number"
+          value={timeoutMs}
         />
       </FormField>
       <label className="yc-checkbox-row">
@@ -676,14 +782,14 @@ function ModelConfigForm({
       </label>
       <div className="yc-actions">
         <Button
-          disabled={busy || !modelCode.trim()}
+          disabled={busy || !valid}
           intent="ghost"
           onClick={() => void onSave(body(config.status))}
         >
           保存配置
         </Button>
         <Button
-          disabled={busy || modelCode !== version.modelCode}
+          disabled={busy || dirty}
           intent="ghost"
           onClick={() =>
             void onProbe().then((result) => {
@@ -694,7 +800,7 @@ function ModelConfigForm({
           探测已保存配置
         </Button>
         <Button
-          disabled={busy || !modelCode.trim()}
+          disabled={busy || !valid}
           onClick={() =>
             void onSave(
               body(config.status === "enabled" ? "disabled" : "enabled"),
@@ -704,9 +810,7 @@ function ModelConfigForm({
           {config.status === "enabled" ? "保存并停用" : "保存并启用"}
         </Button>
       </div>
-      {modelCode !== version.modelCode && (
-        <p>Model ID 已修改，请先保存配置，再进行真实探测。</p>
-      )}
+      {dirty && <p>配置已修改，请先保存，再对已保存版本进行真实探测。</p>}
       {(probeResult || version.probedAt) && (
         <StatePanel
           description={
