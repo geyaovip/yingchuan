@@ -53,7 +53,7 @@ jobs:
         run: |
           install -m 0700 -d "$RUNNER_TEMP/ssh"
           install -m 0600 /dev/null "$RUNNER_TEMP/ssh/key"
-          printf '%s' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/key"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/key"
           printf '%s\n' "$SSH_HOST_KEY" > "$RUNNER_TEMP/ssh/known_hosts"
       - name: Upload immutable deployment files
         env:
