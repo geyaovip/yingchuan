@@ -72,7 +72,7 @@
 | `/settings`                        |   P0 | 用户与工作区设置                     | 修改偏好                          |
 | `/projects/:id/stores`             | 后续 | 门店列表、重复和问题                 | 自动识别、手工维护；不含 CSV 导入 |
 | `/projects/:id/locations`          |   P1 | 城市、区域和门店表现                 | 筛选、下钻                        |
-| `/projects/:id/assistant`          |   P1 | 品牌管家会话                         | 问答、生成草稿                    |
+| `/projects/:id/assistant`          |   P1 | 品牌管家会话、数据时间与引用         | 只读问答、查看不确定性            |
 | `/projects/:id/optimization`       |   P2 | 优化项与复测                         | 指派、流转、复测                  |
 
 ### 2.1 项目动态二级导航

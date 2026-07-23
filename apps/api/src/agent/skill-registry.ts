@@ -46,8 +46,18 @@ export const skillRegistry = new Map<string, SkillDefinition>([
   ),
 ]);
 
+export const brandAssistantSkillRegistry = new Map<string, SkillDefinition>([
+  brandReadSkill("brand.project.read", "读取当前品牌项目基础信息"),
+  brandReadSkill("brand.report.read", "读取当前品牌项目最新报告"),
+  brandReadSkill("brand.competitors.read", "读取当前品牌项目竞品"),
+  brandReadSkill("brand.prompts.read", "读取当前品牌项目启用的分析问题"),
+]);
+
 export function validateRegistry(): void {
-  for (const definition of skillRegistry.values()) {
+  for (const definition of [
+    ...skillRegistry.values(),
+    ...brandAssistantSkillRegistry.values(),
+  ]) {
     if (
       !definition.name ||
       definition.version < 1 ||
@@ -60,12 +70,19 @@ export function validateRegistry(): void {
   }
 }
 
+function brandReadSkill(name: string, description: string) {
+  return skill(name, description, z.object({ projectId: id }), false, {}, [
+    "project.read",
+  ]);
+}
+
 function skill(
   name: string,
   description: string,
   inputSchema: z.ZodType,
   write: boolean,
   maxImpact: Readonly<Record<string, number>> = {},
+  permissions: readonly string[] = ["platform.super_admin"],
 ): [string, SkillDefinition] {
   return [
     name,
@@ -76,7 +93,7 @@ function skill(
       inputSchema,
       maxImpact,
       name,
-      permissions: ["platform.super_admin"],
+      permissions,
       risk: write ? "low" : "read",
       timeoutMs: 10_000,
       version: 1,

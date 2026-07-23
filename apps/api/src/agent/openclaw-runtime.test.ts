@@ -51,4 +51,20 @@ describe("OpenClaw HTTP runtime", () => {
     });
     expect(JSON.stringify(request)).toContain("skill://dashboard/1");
   });
+
+  it("normalizes network failures to an actionable runtime error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+    );
+
+    await expect(
+      new OpenClawHttpRuntime("http://openclaw:18789").formulate(
+        "平台如何？",
+        [],
+        5_000,
+        800,
+      ),
+    ).rejects.toThrow("OPENCLAW_UNAVAILABLE");
+  });
 });

@@ -54,6 +54,7 @@
 | D-048 | accepted   | 2026-07-23 | 根域 `chatway.chat` 部署独立响应式产品官网                                  | 使用 Vite + React + TypeScript 静态站点和 Cloudflare Pages；官网只展示产品信息并跳转 `app.chatway.chat`，不调用生产 API、不建立认证 Session                 |
 | D-049 | accepted   | 2026-07-23 | 用户端与管理端 Session 默认有效期为 365 天                                  | 提供接近长期登录的体验；保留主动退出、账号停用和服务端撤销能力，不创建无法撤销的永久 Session                                                                |
 | D-050 | accepted   | 2026-07-23 | 平台运营日报每天 09:00（Asia/Shanghai）生成前一自然日快照                   | 调度窗口转换为 UTC 并持久化；P0 无订单/付费套餐，付费用户和收入明确标记为暂无数据，不用额度或模型成本冒充收入                                               |
+| D-051 | accepted   | 2026-07-23 | P1 品牌管家仅提供项目范围内的只读报告问答                                   | 使用独立查询 Skill Registry；必须校验用户、所选工作区和项目成员关系，并返回 Skill 引用、报告生成/查询采样时间和不确定性；不接受 Action 或写入工具           |
 
 ## 新增决策模板
 

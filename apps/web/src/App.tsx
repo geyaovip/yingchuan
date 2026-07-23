@@ -219,6 +219,30 @@ interface WorkspaceInvitationResponse {
   readonly status: string;
 }
 
+interface BrandAssistantRunResponse {
+  readonly answer?: string;
+  readonly citations: readonly {
+    readonly citation: string;
+    readonly label: string;
+    readonly observedAt: string;
+    readonly skill: string;
+  }[];
+  readonly contextSnapshot: {
+    readonly sampledAt?: string;
+    readonly sourceGeneratedAt?: string | null;
+    readonly timezone?: string;
+    readonly uncertainty?: {
+      readonly level: "low" | "medium" | "high";
+      readonly message: string;
+    };
+  };
+  readonly createdAt: string;
+  readonly errorCode?: string;
+  readonly id: string;
+  readonly question: string;
+  readonly status: string;
+}
+
 const mainNavigation: readonly NavigationItem[] = [
   { href: "/dashboard", icon: "dashboard", label: "概览" },
   { href: "/projects", icon: "projects", label: "项目" },
@@ -395,6 +419,7 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
   const projectItems =
     pathProjectId && pathProjectId !== "new"
       ? projectNavigation(pathProjectId, {
+          assistant: true,
           website: activeProject?.capabilities.some(
             (item) => item.code === "website" && item.enabled,
           ),
@@ -418,107 +443,118 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
       workspaceId={workspaceId}
       workspaces={shellWorkspaces}
     >
-      <Routes>
-        <Route path="/" element={<Navigate replace to="/dashboard" />} />
-        <Route
-          path="/dashboard"
-          element={
-            <Dashboard
-              error={error}
-              loading={loading}
-              workspaceId={workspaceId}
-              workspaces={workspaces}
-            />
-          }
-        />
-        <Route
-          path="/projects"
-          element={<ProjectsPage workspaceId={workspaceId} />}
-        />
-        <Route
-          path="/projects/new"
-          element={<NewProjectPage workspaceId={workspaceId} />}
-        />
-        <Route
-          path="/projects/:projectId/onboarding"
-          element={<ProjectOnboarding onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/overview"
-          element={<ProjectOverview onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/brand"
-          element={<ProjectBrand onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/sources"
-          element={<ProjectSources onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/website"
-          element={<ProjectWebsite onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/prompts"
-          element={<ProjectPrompts onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/reports"
-          element={<ProjectAnalysis onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/analysis/new"
-          element={<ProjectAnalysis onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/reports/:reportId"
-          element={<ProjectReportDetail onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/history"
-          element={<ProjectHistory onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/optimization"
-          element={<ProjectOptimization onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/settings"
-          element={<ProjectSettings onProject={setActiveProject} />}
-        />
-        <Route
-          path="/projects/:projectId/competitors"
-          element={<ProjectCompetitors onProject={setActiveProject} />}
-        />
-        <Route path="/analysis-jobs/:jobId" element={<AnalysisJobDetail />} />
-        <Route
-          path="/projects/:projectId"
-          element={<ProjectOverview onProject={setActiveProject} />}
-        />
-        <Route
-          path="/workspaces"
-          element={
-            <WorkspacePage
-              error={error}
-              loading={loading}
-              reload={load}
-              workspaces={workspaces}
-            />
-          }
-        />
-        <Route
-          path="/usage"
-          element={<UsagePage workspaceId={workspaceId} />}
-        />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/team" element={<TeamPage workspaceId={workspaceId} />} />
-        <Route
-          path="/settings"
-          element={<SettingsPage workspaceId={workspaceId} />}
-        />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      {loading ? (
+        <Skeleton lines={7} />
+      ) : (
+        <Routes>
+          <Route path="/" element={<Navigate replace to="/dashboard" />} />
+          <Route
+            path="/dashboard"
+            element={
+              <Dashboard
+                error={error}
+                loading={loading}
+                workspaceId={workspaceId}
+                workspaces={workspaces}
+              />
+            }
+          />
+          <Route
+            path="/projects"
+            element={<ProjectsPage workspaceId={workspaceId} />}
+          />
+          <Route
+            path="/projects/new"
+            element={<NewProjectPage workspaceId={workspaceId} />}
+          />
+          <Route
+            path="/projects/:projectId/onboarding"
+            element={<ProjectOnboarding onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/overview"
+            element={<ProjectOverview onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/brand"
+            element={<ProjectBrand onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/sources"
+            element={<ProjectSources onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/website"
+            element={<ProjectWebsite onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/prompts"
+            element={<ProjectPrompts onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/reports"
+            element={<ProjectAnalysis onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/analysis/new"
+            element={<ProjectAnalysis onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/reports/:reportId"
+            element={<ProjectReportDetail onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/history"
+            element={<ProjectHistory onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/optimization"
+            element={<ProjectOptimization onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/assistant"
+            element={<ProjectAssistant onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/settings"
+            element={<ProjectSettings onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/competitors"
+            element={<ProjectCompetitors onProject={setActiveProject} />}
+          />
+          <Route path="/analysis-jobs/:jobId" element={<AnalysisJobDetail />} />
+          <Route
+            path="/projects/:projectId"
+            element={<ProjectOverview onProject={setActiveProject} />}
+          />
+          <Route
+            path="/workspaces"
+            element={
+              <WorkspacePage
+                error={error}
+                loading={loading}
+                reload={load}
+                workspaces={workspaces}
+              />
+            }
+          />
+          <Route
+            path="/usage"
+            element={<UsagePage workspaceId={workspaceId} />}
+          />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route
+            path="/team"
+            element={<TeamPage workspaceId={workspaceId} />}
+          />
+          <Route
+            path="/settings"
+            element={<SettingsPage workspaceId={workspaceId} />}
+          />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      )}
     </AppShell>
   );
 }
@@ -3082,6 +3118,192 @@ function ProjectOptimization({
   );
 }
 
+function ProjectAssistant({
+  onProject,
+}: {
+  readonly onProject: (project: ProjectResponse) => void;
+}) {
+  const { project, loading, error: projectError } = useProject(onProject);
+  const [question, setQuestion] = useState("");
+  const [runs, setRuns] = useState<readonly BrandAssistantRunResponse[]>();
+  const [runsLoaded, setRunsLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const projectId = project?.id;
+  const load = useCallback(async () => {
+    if (!projectId) return;
+    setRunsLoaded(false);
+    try {
+      setRuns(
+        await api.request<readonly BrandAssistantRunResponse[]>(
+          `/projects/${projectId}/assistant/runs`,
+          {},
+          { cache: false },
+        ),
+      );
+      setError(undefined);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setRunsLoaded(true);
+    }
+  }, [projectId]);
+  useEffect(() => {
+    if (!projectId) return;
+    const timer = globalThis.setTimeout(() => void load(), 0);
+    return () => globalThis.clearTimeout(timer);
+  }, [load, projectId]);
+  const ask = async () => {
+    if (!project?.id || !question.trim()) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const run = await api.request<BrandAssistantRunResponse>(
+        `/projects/${project.id}/assistant/runs`,
+        {
+          body: JSON.stringify({
+            question: question.trim(),
+            tokenBudget: 1500,
+          }),
+          method: "POST",
+        },
+      );
+      setRuns((current) => [run, ...(current ?? [])]);
+      setQuestion("");
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (loading || (project && !runsLoaded)) return <Skeleton lines={7} />;
+  if (projectError || !project)
+    return (
+      <StatePanel
+        description={projectError ?? "项目不存在。"}
+        title="无法打开品牌管家"
+        tone="error"
+      />
+    );
+  const suggestions = [
+    "最新报告最值得关注的结论是什么？",
+    "当前品牌相对竞品有哪些优势和短板？",
+    "下一步应该优先优化哪些问题？",
+  ] as const;
+  return (
+    <>
+      <PageHeader
+        description="只基于当前项目已保存的品牌、报告、竞品和分析问题回答，并明确数据时间与不确定性。"
+        title="品牌管家"
+      />
+      {error && (
+        <StatePanel description={error} title="问答暂时不可用" tone="error" />
+      )}
+      <section className="yc-card yc-section-card yc-form-card">
+        <FormField
+          hint="品牌管家不会修改项目、创建任务或调用未注册工具。"
+          label="向品牌管家提问"
+        >
+          <textarea
+            maxLength={2000}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="例如：最新报告里最需要优先处理的问题是什么？"
+            rows={4}
+            value={question}
+          />
+        </FormField>
+        <div className="yc-actions">
+          {suggestions.map((suggestion) => (
+            <Button
+              intent="ghost"
+              key={suggestion}
+              onClick={() => setQuestion(suggestion)}
+            >
+              {suggestion}
+            </Button>
+          ))}
+        </div>
+        <Button disabled={busy || !question.trim()} onClick={() => void ask()}>
+          {busy ? "正在分析…" : "发送问题"}
+        </Button>
+      </section>
+      {runs?.length === 0 ? (
+        <StatePanel
+          description="提出第一个问题后，回答、引用和数据时间会保存在这里。"
+          title="开始了解你的品牌"
+        />
+      ) : (
+        runs?.map((run) => {
+          const uncertainty = run.contextSnapshot.uncertainty;
+          return (
+            <section className="yc-card yc-section-card" key={run.id}>
+              <div className="yc-section-heading">
+                <div>
+                  <h2>{run.question}</h2>
+                  <p>{formatDateTime(run.createdAt)}</p>
+                </div>
+                <StatusBadge
+                  tone={
+                    run.status === "succeeded"
+                      ? uncertainty?.level === "high"
+                        ? "warning"
+                        : "success"
+                      : "danger"
+                  }
+                >
+                  {run.status === "succeeded" ? "已回答" : "回答失败"}
+                </StatusBadge>
+              </div>
+              <p>{run.answer ?? run.errorCode ?? "当前没有可展示的回答。"}</p>
+              <div className="yc-inline-note">
+                <strong>
+                  不确定性：{uncertaintyLevel(uncertainty?.level)}
+                </strong>
+                <span>
+                  {uncertainty?.message ?? "当前回答未提供不确定性说明。"}
+                </span>
+              </div>
+              <ul className="yc-plain-list">
+                <li>
+                  <span>
+                    <strong>报告数据时间</strong>
+                    <small>
+                      {run.contextSnapshot.sourceGeneratedAt
+                        ? formatDateTime(run.contextSnapshot.sourceGeneratedAt)
+                        : "暂无可用报告快照"}
+                    </small>
+                  </span>
+                </li>
+                <li>
+                  <span>
+                    <strong>查询采样时间</strong>
+                    <small>
+                      {run.contextSnapshot.sampledAt
+                        ? formatDateTime(run.contextSnapshot.sampledAt)
+                        : formatDateTime(run.createdAt)}
+                    </small>
+                  </span>
+                </li>
+                {run.citations.map((citation) => (
+                  <li key={citation.citation}>
+                    <span>
+                      <strong>{citation.label}</strong>
+                      <small>
+                        {citation.citation} ·{" "}
+                        {formatDateTime(citation.observedAt)}
+                      </small>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })
+      )}
+    </>
+  );
+}
+
 function ProjectReportDetail({
   onProject,
 }: {
@@ -3746,6 +3968,10 @@ function formatMicros(value: string): string {
     maximumFractionDigits: 6,
     style: "currency",
   }).format(amount);
+}
+
+function uncertaintyLevel(level?: "low" | "medium" | "high"): string {
+  return level === "low" ? "低" : level === "medium" ? "中" : "高";
 }
 
 function useProject(

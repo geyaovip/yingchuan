@@ -13,4 +13,12 @@ describe("projectNavigation", () => {
     expect(labels).toContain("城市与区域");
     expect(labels).not.toContain("品牌管家");
   });
+
+  it("adds the brand assistant only after its capability is enabled", () => {
+    const items = projectNavigation("project-1", { assistant: true });
+    expect(items).toContainEqual({
+      href: "/projects/project-1/assistant",
+      label: "品牌管家",
+    });
+  });
 });

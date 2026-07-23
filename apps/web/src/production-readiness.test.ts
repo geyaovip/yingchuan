@@ -25,6 +25,7 @@ describe("user app production route contract", () => {
     "/projects/:projectId/brand",
     "/projects/:projectId/website",
     "/projects/:projectId/optimization",
+    "/projects/:projectId/assistant",
     "/projects/:projectId/history",
     "/projects/:projectId/settings",
     "/projects/:projectId/reports/:reportId",

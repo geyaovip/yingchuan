@@ -9,6 +9,8 @@ import { AuthModule } from "../auth/auth.module.js";
 import { DATABASE_CLIENT } from "../database/database.constants.js";
 import { AgentController } from "./agent.controller.js";
 import { AgentService } from "./agent.service.js";
+import { BrandAssistantController } from "./brand-assistant.controller.js";
+import { BrandAssistantService } from "./brand-assistant.service.js";
 import {
   DeterministicAgentRuntime,
   OpenClawHttpRuntime,
@@ -17,7 +19,7 @@ import {
 
 const OPENCLAW_RUNTIME = Symbol("OPENCLAW_RUNTIME");
 @Module({
-  controllers: [AgentController],
+  controllers: [AgentController, BrandAssistantController],
   imports: [AuthModule, AnalysisModule],
   providers: [
     {
@@ -42,6 +44,12 @@ const OPENCLAW_RUNTIME = Symbol("OPENCLAW_RUNTIME");
         analysis: AnalysisApplicationService,
         runtime: OpenClawRuntime,
       ) => new AgentService(database, analysis, runtime),
+    },
+    {
+      inject: [DATABASE_CLIENT, OPENCLAW_RUNTIME],
+      provide: BrandAssistantService,
+      useFactory: (database: PrismaClient, runtime: OpenClawRuntime) =>
+        new BrandAssistantService(database, runtime),
     },
   ],
 })

@@ -451,6 +451,19 @@ a {
   flex-wrap: wrap;
   gap: 4px;
 }
+.yc-inline-note {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--yc-border-subtle);
+  border-radius: var(--yc-radius-md);
+  background: var(--yc-surface-subtle);
+}
+.yc-inline-note span {
+  color: var(--yc-text-secondary);
+  font-size: 13px;
+}
 .yc-block-meta {
   display: block;
   margin-top: 4px;

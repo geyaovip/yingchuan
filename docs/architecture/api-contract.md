@@ -159,6 +159,8 @@ POST   /api/v1/projects/:projectId/reports/:versionId/publish
 POST   /api/v1/projects/:projectId/reports/:versionId/archive
 GET    /api/v1/projects/:projectId/competitors
 PATCH  /api/v1/projects/:projectId/competitors/:competitorId
+GET    /api/v1/projects/:projectId/assistant/runs
+POST   /api/v1/projects/:projectId/assistant/runs
 
 GET    /api/v1/notifications
 PATCH  /api/v1/notifications/:notificationId/read
@@ -175,7 +177,7 @@ PATCH  /api/v1/workspaces/:workspaceId/members/:memberId
 DELETE /api/v1/workspaces/:workspaceId/members/:memberId
 ```
 
-P1/P2 增加门店、品牌管家、优化任务、报告导出/分享等；在对应 Epic 开始前补充 OpenAPI。
+P1/P2 增加门店、优化任务、报告导出/分享等；在对应 Epic 开始前补充 OpenAPI。
 
 ## 8. P0 管理端接口
 
