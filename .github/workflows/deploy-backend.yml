@@ -104,6 +104,14 @@ jobs:
           $compose up -d --no-deps api worker
           $compose up -d --no-deps caddy
           $compose ps
-          $compose exec -T api node -e "fetch('http://127.0.0.1:3000/api/v1/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+          ready_attempt=0
+          until $compose exec -T api node -e "fetch('http://127.0.0.1:3000/api/v1/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; do
+            ready_attempt=$((ready_attempt + 1))
+            if [ "$ready_attempt" -ge 12 ]; then
+              echo 'API did not become ready within 60 seconds.' >&2
+              exit 1
+            fi
+            sleep 5
+          done
           REMOTE
           curl --fail --retry 12 --retry-delay 5 --retry-all-errors https://api.chatway.chat/api/v1/ready
