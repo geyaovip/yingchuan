@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 export const OPENCLAW_VERSION = "2026.7.1";
+export const AGENT_FORMULATION_TIMEOUT_MS = 60_000;
 
 export interface RuntimeEvidence {
   readonly citation: string;

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  AGENT_FORMULATION_TIMEOUT_MS,
   assertOutputTokenBudget,
   OpenClawHttpRuntime,
 } from "./openclaw-runtime.js";
@@ -78,5 +79,9 @@ describe("OpenClaw HTTP runtime", () => {
     expect(() =>
       assertOutputTokenBudget({ outputTokens: 1_501 }, 1_500),
     ).toThrow("AGENT_BUDGET_EXCEEDED");
+  });
+
+  it("allows enough time for the model gateway to complete a normal production response", () => {
+    expect(AGENT_FORMULATION_TIMEOUT_MS).toBe(60_000);
   });
 });

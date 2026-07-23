@@ -11,6 +11,7 @@ import { v7 as uuidv7 } from "uuid";
 
 import type { AuthenticatedSession } from "../auth/auth.types.js";
 import {
+  AGENT_FORMULATION_TIMEOUT_MS,
   assertOutputTokenBudget,
   OPENCLAW_VERSION,
   type OpenClawRuntime,
@@ -90,7 +91,7 @@ export class AgentService {
       const result = await this.runtime.formulate(
         input.question,
         evidence,
-        15_000,
+        AGENT_FORMULATION_TIMEOUT_MS,
         tokenBudget,
       );
       assertOutputTokenBudget(result, tokenBudget);

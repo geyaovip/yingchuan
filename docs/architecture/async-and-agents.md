@@ -83,7 +83,7 @@
 
 OpenClaw 使用官方 `v2026.7.1` 容器并固定镜像摘要，只通过内网与 Agent Gateway 通信。HTTP Chat Completions 默认关闭，部署配置显式开启后仍不映射宿主端口；Gateway Token 是完整 operator 密钥，只以 Compose secret 注入。OpenClaw 自身工具全部禁用，模型调用回到映川内部 OpenAI 兼容代理，再由 Model Gateway 选择已启用的火山方舟 ModelConfig，因此不会绕过统一调用日志与密钥管理。开发/测试无 OpenClaw 地址时使用确定性证据渲染器，不冒充生产联调。
 
-AgentRun 的 `tokenBudget` 是单次回答的生成 Token 上限，并直接传给模型的 `max_completion_tokens`；OpenClaw 自带系统上下文产生的输入 Token 仍由 Model Gateway 完整计量、计费和记录，但不占用生成上限。`costBudgetMicros` 作为独立成本护栏记录，不能用生成上限重复拦截输入上下文。
+AgentRun 的 `tokenBudget` 是单次回答的生成 Token 上限，并直接传给模型的 `max_completion_tokens`；OpenClaw 自带系统上下文产生的输入 Token 仍由 Model Gateway 完整计量、计费和记录，但不占用生成上限。`costBudgetMicros` 作为独立成本护栏记录，不能用生成上限重复拦截输入上下文。Agent 到 OpenClaw 的单次组织回答超时为 60 秒，覆盖当前生产模型约 16–18 秒的正常响应时间，同时仍低于 ModelConfig 的 120 秒供应商超时。
 
 管理端 Skill Registry 注册 `dashboard.read`、`task.health.read`、`model.health.read`、`queue.health.read`、`project.report.read`、`retry_task`、`admin.todo.create`。前五项只读；后两项要求显式参数和幂等键。用户侧品牌管家使用独立 Registry，只包含 `brand.project.read`、`brand.report.read`、`brand.competitors.read`、`brand.prompts.read` 四个 `project.read` 查询 Skill；服务端同时校验用户 Session、所选工作区和项目成员关系，问题文本不能扩展 Skill 集合或触发写操作。OpenClaw 只负责基于 Skill 证据组织回答，不能提出或执行产品 Action。涉及指标和项目结论时必须返回 Skill 引用、数据生成/采样时间和不确定性；没有报告时明确回答无法确定。
 

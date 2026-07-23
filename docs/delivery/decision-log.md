@@ -57,6 +57,7 @@
 | D-051 | accepted   | 2026-07-23 | P1 品牌管家仅提供项目范围内的只读报告问答                                   | 使用独立查询 Skill Registry；必须校验用户、所选工作区和项目成员关系，并返回 Skill 引用、报告生成/查询采样时间和不确定性；不接受 Action 或写入工具           |
 | D-052 | accepted   | 2026-07-23 | 用户端与管理端使用独立的 Session Cookie                                     | `yc_user_session` 与 `yc_admin_session` 可在同一浏览器并存；API 按路由/精确 Origin 选择会话，登录清理旧 `yc_session`，避免管理会话被用户端误认              |
 | D-053 | accepted   | 2026-07-23 | Agent `tokenBudget` 表示回答生成 Token 上限                                 | 直接约束 `max_completion_tokens` 和输出 Token；OpenClaw 系统上下文的输入 Token 继续记录与计费，`costBudgetMicros` 保持为独立成本护栏记录                    |
+| D-054 | accepted   | 2026-07-23 | Agent 组织回答链路使用 60 秒应用超时                                        | 生产方舟调用实测约 16–18 秒，原 15 秒会让 API 提前中止而模型仍完成并计费；60 秒覆盖正常延迟，且仍低于供应商层 120 秒超时                                    |
 
 ## 新增决策模板
 
