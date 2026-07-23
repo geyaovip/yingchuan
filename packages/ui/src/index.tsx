@@ -627,16 +627,20 @@ export function StatePanel({
   readonly title: string;
 }) {
   const Icon = {
-    empty: Circle,
+    empty: undefined,
     error: CircleAlert,
     forbidden: Ban,
     stale: RefreshCcw,
   }[tone];
   return (
-    <section className={`yc-state yc-state--${tone}`}>
-      <span aria-hidden="true">
-        <Icon size={17} strokeWidth={1.9} />
-      </span>
+    <section
+      className={`yc-state yc-state--${tone}${Icon ? "" : " yc-state--without-icon"}`}
+    >
+      {Icon && (
+        <span aria-hidden="true">
+          <Icon size={17} strokeWidth={1.9} />
+        </span>
+      )}
       <div>
         <h2>{title}</h2>
         <p>{description}</p>

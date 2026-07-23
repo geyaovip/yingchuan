@@ -162,13 +162,31 @@ interface NotificationDeliveryResponse {
   readonly status: string;
 }
 
+interface AlertResponse {
+  readonly acknowledgedAt?: string | null;
+  readonly body: string;
+  readonly firstTriggeredAt: string;
+  readonly id: string;
+  readonly lastTriggeredAt: string;
+  readonly metricValue: string;
+  readonly occurrenceCount: number;
+  readonly resolvedAt?: string | null;
+  readonly ruleCode: string;
+  readonly severity: "warning" | "critical";
+  readonly status: "active" | "resolved";
+  readonly thresholdValue: string;
+  readonly title: string;
+  readonly unit: string;
+}
+
 const navigation: readonly NavigationItem[] = [
   { href: "/admin", icon: "dashboard", label: "管理首页" },
   { href: "/admin/users", icon: "team", label: "用户与工作区" },
   { href: "/admin/projects", icon: "projects", label: "项目" },
   { href: "/admin/tasks", icon: "tasks", label: "任务" },
   { href: "/admin/models", icon: "models", label: "模型" },
-  { href: "/admin/agent", icon: "agent", label: "Agent" },
+  { href: "/admin/agent", icon: "agent", label: "运营助手" },
+  { href: "/admin/alerts", icon: "notifications", label: "告警" },
   {
     href: "/admin/notification-channels",
     icon: "notifications",
@@ -297,6 +315,8 @@ function AdminShell({ session }: { readonly session: SessionView }) {
         <Route path="/admin/tasks" element={<AdminTasks />} />
         <Route path="/admin/agent" element={<AdminAgent />} />
         <Route path="/admin/agent/runs" element={<AdminAgent />} />
+        <Route path="/admin/alerts" element={<AdminAlerts />} />
+        <Route path="/admin/alert-rules" element={<AdminAlerts />} />
         <Route
           path="/admin/notification-channels"
           element={<TelegramSettings />}
@@ -379,7 +399,7 @@ function ModelManagement() {
   return (
     <>
       <PageHeader
-        description="P0 统一通过火山方舟调用，四个模型族各自版本化配置。"
+        description="集中管理火山方舟接入、模型版本、价格、能力和可用状态。"
         title="模型管理"
       />
       {error && (
@@ -456,7 +476,7 @@ function ModelManagement() {
                 },
                 {
                   key: "web",
-                  label: "原生联网",
+                  label: "联网能力",
                   render: (row: ModelConfig) =>
                     row.versions[0]?.nativeWebSearch ? "支持" : "不支持",
                 },
@@ -465,9 +485,7 @@ function ModelManagement() {
                   label: "最近探测",
                   render: (row: ModelConfig) =>
                     row.versions[0]?.probedAt
-                      ? new Date(row.versions[0].probedAt).toLocaleString(
-                          "zh-CN",
-                        )
+                      ? adminFormatDateTime(row.versions[0].probedAt)
                       : "未探测",
                   secondary: true,
                 },
@@ -594,7 +612,7 @@ function ModelManagement() {
                   <StatusBadge
                     tone={row.status === "succeeded" ? "success" : "danger"}
                   >
-                    {row.status}
+                    {executionStatusLabel(row.status)}
                   </StatusBadge>
                 ),
               },
@@ -610,8 +628,8 @@ function ModelManagement() {
               },
               {
                 key: "cost",
-                label: "成本微元",
-                render: (row) => row.costMicros,
+                label: "费用",
+                render: (row) => adminFormatMicros(BigInt(row.costMicros)),
               },
               {
                 key: "error",
@@ -645,10 +663,10 @@ function ModelConfigForm({
     version.contextWindow?.toString() ?? "",
   );
   const [inputPrice, setInputPrice] = useState(
-    version.inputPriceMicrosPerMillion ?? "0",
+    microsToYuanInput(version.inputPriceMicrosPerMillion ?? "0"),
   );
   const [outputPrice, setOutputPrice] = useState(
-    version.outputPriceMicrosPerMillion ?? "0",
+    microsToYuanInput(version.outputPriceMicrosPerMillion ?? "0"),
   );
   const [maxConcurrency, setMaxConcurrency] = useState(
     version.maxConcurrency.toString(),
@@ -662,11 +680,11 @@ function ModelConfigForm({
     apiMode,
     ...(contextWindow ? { contextWindow: Number(contextWindow) } : {}),
     displayName,
-    inputPriceMicrosPerMillion: inputPrice,
+    inputPriceMicrosPerMillion: yuanInputToMicros(inputPrice),
     maxConcurrency: Number(maxConcurrency),
     modelCode,
     nativeWebSearch,
-    outputPriceMicrosPerMillion: outputPrice,
+    outputPriceMicrosPerMillion: yuanInputToMicros(outputPrice),
     status,
     timeoutMs: Number(timeoutMs),
     ...(nativeWebSearch ? { webSearchConfig: { type: "web_search" } } : {}),
@@ -676,15 +694,17 @@ function ModelConfigForm({
     Number(maxConcurrency) >= 1 &&
     Number(timeoutMs) >= 1_000 &&
     (!contextWindow || Number(contextWindow) > 0) &&
-    /^\d+$/.test(inputPrice) &&
-    /^\d+$/.test(outputPrice);
+    /^\d+(?:\.\d{1,6})?$/.test(inputPrice) &&
+    /^\d+(?:\.\d{1,6})?$/.test(outputPrice);
   const dirty =
     displayName !== config.displayName ||
     modelCode !== version.modelCode ||
     apiMode !== version.apiMode ||
     contextWindow !== (version.contextWindow?.toString() ?? "") ||
-    inputPrice !== (version.inputPriceMicrosPerMillion ?? "0") ||
-    outputPrice !== (version.outputPriceMicrosPerMillion ?? "0") ||
+    inputPrice !==
+      microsToYuanInput(version.inputPriceMicrosPerMillion ?? "0") ||
+    outputPrice !==
+      microsToYuanInput(version.outputPriceMicrosPerMillion ?? "0") ||
     maxConcurrency !== version.maxConcurrency.toString() ||
     timeoutMs !== version.timeoutMs.toString() ||
     nativeWebSearch !== version.nativeWebSearch;
@@ -727,26 +747,22 @@ function ModelConfigForm({
           value={contextWindow}
         />
       </FormField>
-      <FormField
-        hint="1 元 = 1,000,000 微元。"
-        label="输入价格（微元/百万 Token）"
-      >
+      <FormField hint="最多保留 6 位小数。" label="输入价格（元/百万 Token）">
         <input
-          inputMode="numeric"
+          inputMode="decimal"
           min={0}
           onChange={(event) => setInputPrice(event.target.value)}
+          step="0.000001"
           type="number"
           value={inputPrice}
         />
       </FormField>
-      <FormField
-        hint="1 元 = 1,000,000 微元。"
-        label="输出价格（微元/百万 Token）"
-      >
+      <FormField hint="最多保留 6 位小数。" label="输出价格（元/百万 Token）">
         <input
-          inputMode="numeric"
+          inputMode="decimal"
           min={0}
           onChange={(event) => setOutputPrice(event.target.value)}
+          step="0.000001"
           type="number"
           value={outputPrice}
         />
@@ -777,7 +793,7 @@ function ModelConfigForm({
           onChange={(event) => setNativeWebSearch(event.target.checked)}
           type="checkbox"
         />
-        已经当前 Model ID + API 模式实测支持原生联网
+        已确认当前 Model ID 与 API 模式支持联网
       </label>
       <div className="yc-actions">
         <Button
@@ -817,7 +833,7 @@ function ModelConfigForm({
               ? probeResult.status === "succeeded"
                 ? `${probeResult.modelCode} · ${probeResult.latencyMs} ms · ${probeResult.inputTokens} + ${probeResult.outputTokens} Token`
                 : `${probeResult.modelCode} · ${probeResult.errorCode ?? "MODEL_PROBE_FAILED"}`
-              : `最近成功：${new Date(version.probedAt!).toLocaleString("zh-CN")}`
+              : `最近成功：${adminFormatDateTime(version.probedAt!)}`
           }
           title={
             probeResult?.status === "failed" ? "模型探测失败" : "模型探测通过"
@@ -844,7 +860,7 @@ function AdminHome() {
         description="查看平台运行状态、模型调用和待处理事项。"
         metadata={
           data
-            ? `${new Date(data.dataFrom).toLocaleString("zh-CN")} — ${new Date(data.dataTo).toLocaleString("zh-CN")}`
+            ? `${adminFormatDateTime(data.dataFrom)} — ${adminFormatDateTime(data.dataTo)}`
             : "最近 24 小时运行数据"
         }
         title="运营概览"
@@ -955,7 +971,7 @@ function AdminUsers() {
                 <StatusBadge
                   tone={row.status === "active" ? "success" : "danger"}
                 >
-                  {row.status}
+                  {accountStatusLabel(row.status)}
                 </StatusBadge>
               ),
             },
@@ -966,7 +982,7 @@ function AdminUsers() {
                 row.memberships
                   .map(
                     (item) =>
-                      `${item.workspace.name} (${item.role.code}, ${item.workspace._count.projects})`,
+                      `${item.workspace.name}（${adminRoleLabel(item.role.code)}，${item.workspace._count.projects} 个项目）`,
                   )
                   .join("；") || "—",
             },
@@ -1041,11 +1057,18 @@ function AdminProjects() {
               label: "品牌",
               render: (row) => row.brandEntity?.canonicalName ?? "待确认",
             },
-            { key: "status", label: "状态", render: (row) => row.status },
+            {
+              key: "status",
+              label: "状态",
+              render: (row) => projectStatusLabel(row.status),
+            },
             {
               key: "job",
               label: "最新任务",
-              render: (row) => row.analysisJobs[0]?.status ?? "—",
+              render: (row) =>
+                row.analysisJobs[0]
+                  ? executionStatusLabel(row.analysisJobs[0].status)
+                  : "暂无任务",
             },
           ]}
         />
@@ -1121,7 +1144,7 @@ function AdminTasks() {
                         : "warning"
                   }
                 >
-                  {row.status}
+                  {executionStatusLabel(row.status)}
                 </StatusBadge>
               ),
             },
@@ -1134,7 +1157,7 @@ function AdminTasks() {
             {
               key: "time",
               label: "创建时间",
-              render: (row) => new Date(row.createdAt).toLocaleString("zh-CN"),
+              render: (row) => adminFormatDateTime(row.createdAt),
             },
           ]}
         />
@@ -1146,13 +1169,20 @@ function AdminTasks() {
 function AdminAgent() {
   const [question, setQuestion] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [projects, setProjects] = useState<readonly AdminProjectResponse[]>([]);
   const [runs, setRuns] = useState<readonly AgentRunResponse[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const load = () =>
-    api
-      .request<readonly AgentRunResponse[]>("/admin/agent-runs")
-      .then(setRuns)
+    Promise.all([
+      api.request<readonly AgentRunResponse[]>("/admin/agent-runs"),
+      api.request<readonly AdminProjectResponse[]>("/admin/projects"),
+    ])
+      .then(([nextRuns, nextProjects]) => {
+        setRuns(nextRuns);
+        setProjects(nextProjects);
+        setError(undefined);
+      })
       .catch((caught) => setError(messageFor(caught)));
   useEffect(() => {
     void load();
@@ -1180,9 +1210,8 @@ function AdminAgent() {
   return (
     <>
       <PageHeader
-        metadata="OpenClaw 2026.7.1"
         title="运营助手"
-        description="只基于已注册 Skill 的实时数据回答；答案显示数据引用和运行消耗。"
+        description="基于平台实时数据回答运营问题，并展示数据来源与本次运行消耗。"
       />
       {error && (
         <StatePanel description={error} title="运行失败" tone="error" />
@@ -1190,7 +1219,7 @@ function AdminAgent() {
       <section className="yc-card yc-section-card yc-form-card">
         <FormField
           label="问题"
-          hint="例如：平台概览、模型健康、队列是否有死信；查看报告时填写项目 ID。"
+          hint="例如：平台整体运行是否正常？哪些分析任务需要关注？"
         >
           <textarea
             maxLength={2000}
@@ -1198,11 +1227,18 @@ function AdminAgent() {
             value={question}
           />
         </FormField>
-        <FormField label="项目 ID（可选）">
-          <input
+        <FormField label="关联项目（可选）">
+          <select
             onChange={(event) => setProjectId(event.target.value)}
             value={projectId}
-          />
+          >
+            <option value="">不限定项目</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.workspace.name} · {project.name}
+              </option>
+            ))}
+          </select>
         </FormField>
         <Button disabled={busy || !question.trim()} onClick={() => void ask()}>
           {busy ? "运行中…" : "运行助手"}
@@ -1210,7 +1246,7 @@ function AdminAgent() {
       </section>
       {runs.length === 0 ? (
         <StatePanel
-          description="提交问题后，运行、Skill 和引用会显示在这里。"
+          description="提交问题后，运行状态和数据来源会显示在这里。"
           title="暂无运行"
         />
       ) : (
@@ -1218,17 +1254,17 @@ function AdminAgent() {
           <section className="yc-card yc-section-card" key={run.id}>
             <div className="yc-section-heading">
               <div>
-                <h2>{new Date(run.createdAt).toLocaleString("zh-CN")}</h2>
+                <h2>{adminFormatDateTime(run.createdAt)}</h2>
                 <p>
-                  OpenClaw {run.runtimeVersion} · Token{" "}
-                  {run.inputTokens + run.outputTokens} · 成本 {run.costMicros}{" "}
-                  微元
+                  运行版本 {run.runtimeVersion} · Token{" "}
+                  {run.inputTokens + run.outputTokens} · 费用{" "}
+                  {adminFormatMicros(BigInt(run.costMicros))}
                 </p>
               </div>
               <StatusBadge
                 tone={run.status === "succeeded" ? "success" : "danger"}
               >
-                {run.status}
+                {executionStatusLabel(run.status)}
               </StatusBadge>
             </div>
             <p>{run.answer ?? run.errorCode ?? "无回答"}</p>
@@ -1247,6 +1283,145 @@ function AdminAgent() {
       )}
     </>
   );
+}
+
+function AdminAlerts() {
+  const [rows, setRows] = useState<readonly AlertResponse[]>();
+  const [busyId, setBusyId] = useState<string>();
+  const [error, setError] = useState<string>();
+  const load = () =>
+    api
+      .request<readonly AlertResponse[]>("/admin/alerts")
+      .then((result) => {
+        setRows(result);
+        setError(undefined);
+      })
+      .catch((caught) => setError(messageFor(caught)));
+  useEffect(() => {
+    void load();
+    const timer = globalThis.setInterval(() => void load(), 60_000);
+    return () => globalThis.clearInterval(timer);
+  }, []);
+  return (
+    <>
+      <PageHeader
+        title="平台告警"
+        description="确定性规则每分钟评估；同一异常合并，30 分钟内不重复提醒，恢复后自动关闭。"
+        actions={<Button onClick={() => void load()}>刷新</Button>}
+      />
+      <section className="yc-card yc-section-card">
+        <div className="yc-section-heading">
+          <div>
+            <h2>固定规则</h2>
+            <p>规则由平台统一管理，不依赖运营助手判断。</p>
+          </div>
+        </div>
+        <ul className="yc-plain-list">
+          <li>模型失败率：最近 5 分钟 ≥ 10%</li>
+          <li>队列等待：超过 10 分钟的任务 ≥ 500</li>
+          <li>模型成本：本小时比过去 7 天同期均值高 ≥ 50%</li>
+          <li>报告耗时：最近 15 分钟平均 ≥ 5 分钟</li>
+        </ul>
+      </section>
+      {error ? (
+        <StatePanel description={error} title="告警加载失败" tone="error" />
+      ) : !rows ? (
+        <Skeleton />
+      ) : rows.length === 0 ? (
+        <StatePanel
+          description="模型、队列、成本和报告耗时目前都未触发阈值。"
+          title="当前没有告警"
+        />
+      ) : (
+        <ResponsiveData
+          rows={rows}
+          columns={[
+            {
+              key: "alert",
+              label: "告警",
+              render: (row) => (
+                <div>
+                  <strong>{row.title}</strong>
+                  <small className="yc-table-secondary">{row.body}</small>
+                </div>
+              ),
+            },
+            {
+              key: "status",
+              label: "状态",
+              render: (row) => (
+                <StatusBadge
+                  tone={
+                    row.status === "resolved"
+                      ? "success"
+                      : row.severity === "critical"
+                        ? "danger"
+                        : "warning"
+                  }
+                >
+                  {row.status === "resolved"
+                    ? "已恢复"
+                    : row.severity === "critical"
+                      ? "严重"
+                      : "告警中"}
+                </StatusBadge>
+              ),
+            },
+            {
+              key: "metric",
+              label: "指标 / 阈值",
+              render: (row) =>
+                `${formatAlertMetric(row.metricValue, row.unit)} / ${formatAlertMetric(row.thresholdValue, row.unit)}`,
+            },
+            {
+              key: "occurrences",
+              label: "命中次数",
+              render: (row) => row.occurrenceCount,
+            },
+            {
+              key: "acknowledgement",
+              label: "确认",
+              render: (row) =>
+                row.acknowledgedAt ? (
+                  `已确认 · ${adminFormatDateTime(row.acknowledgedAt)}`
+                ) : row.status === "active" ? (
+                  <Button
+                    disabled={busyId === row.id}
+                    intent="ghost"
+                    onClick={() => {
+                      setBusyId(row.id);
+                      void api
+                        .request(`/admin/alerts/${row.id}/acknowledge`, {
+                          method: "PATCH",
+                        })
+                        .then(() => load())
+                        .catch((caught) => setError(messageFor(caught)))
+                        .finally(() => setBusyId(undefined));
+                    }}
+                  >
+                    {busyId === row.id ? "确认中…" : "确认告警"}
+                  </Button>
+                ) : (
+                  "—"
+                ),
+            },
+            {
+              key: "time",
+              label: "最近命中",
+              render: (row) => adminFormatDateTime(row.lastTriggeredAt),
+            },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+function formatAlertMetric(value: string, unit: string) {
+  const number = Number(value);
+  if (unit === "percent") return `${number.toFixed(1)}%`;
+  if (unit === "seconds") return `${Math.round(number)} 秒`;
+  return `${Math.round(number)} 个`;
 }
 
 function TelegramSettings() {
@@ -1403,7 +1578,7 @@ function TelegramSettings() {
                     <StatusBadge
                       tone={row.status === "sent" ? "success" : "danger"}
                     >
-                      {row.status}
+                      {deliveryStatusLabel(row.status)}
                     </StatusBadge>
                   ),
                 },
@@ -1420,8 +1595,7 @@ function TelegramSettings() {
                 {
                   key: "time",
                   label: "时间",
-                  render: (row) =>
-                    new Date(row.createdAt).toLocaleString("zh-CN"),
+                  render: (row) => adminFormatDateTime(row.createdAt),
                 },
               ]}
             />
@@ -1489,7 +1663,7 @@ function AdminUsage() {
       return;
     if (
       !globalThis.confirm(
-        `确认调整 ${numeric > 0 ? "增加" : "扣减"} ${Math.abs(numeric).toFixed(2)} 元额度？该操作会写入追加式账本。`,
+        `确认${numeric > 0 ? "增加" : "扣减"} ${Math.abs(numeric).toFixed(2)} 元额度？该操作将保留完整记录。`,
       )
     )
       return;
@@ -1518,7 +1692,7 @@ function AdminUsage() {
   return (
     <>
       <PageHeader
-        description="查看工作区额度汇总并执行受审计的追加式调整；P0 不接支付订单。"
+        description="查看各工作区额度汇总，并执行有完整操作记录的额度调整。"
         title="用量与额度"
       />
       {error && (
@@ -1653,9 +1827,8 @@ function AuditLogs() {
     },
     {
       key: "time",
-      label: "时间（UTC）",
-      render: (row) =>
-        new Date(row.createdAt).toISOString().replace("T", " ").slice(0, 19),
+      label: "时间",
+      render: (row) => adminFormatDateTime(row.createdAt),
       secondary: true,
     },
     {
@@ -1668,7 +1841,7 @@ function AuditLogs() {
   return (
     <>
       <PageHeader
-        description="管理写操作、敏感配置和 Agent 动作的追加式记录。"
+        description="查询管理操作、敏感配置变更和运营助手动作的完整记录。"
         title="审计日志"
       />
       <div className="yc-actions">
@@ -1720,6 +1893,94 @@ function adminFormatMicros(value: bigint): string {
     maximumFractionDigits: 6,
     style: "currency",
   }).format(Number(value) / 1_000_000);
+}
+
+function microsToYuanInput(value: string): string {
+  const micros = BigInt(value);
+  const yuan = micros / 1_000_000n;
+  const fraction = (micros % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
+  return fraction ? `${yuan}.${fraction}` : yuan.toString();
+}
+
+function yuanInputToMicros(value: string): string {
+  const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value);
+  if (!match) return "0";
+  const yuan = BigInt(match[1]!);
+  const fraction = BigInt((match[2] ?? "").padEnd(6, "0") || "0");
+  return (yuan * 1_000_000n + fraction).toString();
+}
+
+function executionStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    budget_exceeded: "超出预算",
+    cancelled: "已取消",
+    completed: "已完成",
+    failed: "失败",
+    outcome_unknown: "结果待确认",
+    partially_completed: "部分完成",
+    pending: "等待中",
+    queued: "排队中",
+    running: "运行中",
+    succeeded: "成功",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function accountStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    active: "正常",
+    disabled: "已停用",
+    suspended: "已暂停",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function projectStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    active: "运行中",
+    archived: "已归档",
+    confirmed: "已确认",
+    draft: "草稿",
+    identifying: "识别中",
+    ready: "已就绪",
+    waiting_confirmation: "待确认",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function deliveryStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    failed: "发送失败",
+    pending: "等待发送",
+    queued: "等待发送",
+    retrying: "重试中",
+    sending: "发送中",
+    sent: "已发送",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function adminRoleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    admin: "管理员",
+    analyst: "分析师",
+    operator: "运营",
+    owner: "所有者",
+    super_admin: "超级管理员",
+    viewer: "查看者",
+  };
+  return labels[role] ?? "自定义角色";
+}
+
+function adminFormatDateTime(value: string): string {
+  return `${new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Shanghai",
+  }).format(new Date(value))}（北京时间）`;
 }
 
 function messageFor(error: unknown): string {

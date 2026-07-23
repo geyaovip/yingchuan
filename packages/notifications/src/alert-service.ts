@@ -246,14 +246,15 @@ export class AlertApplicationService {
         const payload = current.payload as { text?: unknown };
         if (typeof payload.text !== "string")
           throw new Error("TELEGRAM_PAYLOAD_INVALID");
+        const decryptedToken = this.secretBox.decrypt(
+          JSON.parse(config.encryptedToken) as EncryptedSecret,
+        );
         const result = await this.telegram.send({
           chatId: this.secretBox.decrypt(
             JSON.parse(config.encryptedChatId) as EncryptedSecret,
           ),
           text: payload.text,
-          token: this.secretBox.decrypt(
-            JSON.parse(config.encryptedToken) as EncryptedSecret,
-          ),
+          token: decryptedToken,
         });
         await this.database.notificationDelivery.update({
           data: {

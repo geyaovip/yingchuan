@@ -25,6 +25,8 @@ describe("admin production route contract", () => {
     "/admin/models",
     "/admin/agent",
     "/admin/agent/runs",
+    "/admin/alerts",
+    "/admin/alert-rules",
     "/admin/notification-channels",
     "/admin/usage",
     "/admin/audit-logs",

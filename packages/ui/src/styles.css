@@ -594,6 +594,9 @@ a {
   border-radius: var(--yc-radius-lg);
   background: var(--yc-surface);
 }
+.yc-state--without-icon {
+  display: block;
+}
 .yc-state > span {
   display: grid;
   width: 34px;
@@ -613,6 +616,9 @@ a {
   margin: 0 0 14px;
   color: var(--yc-text-secondary);
   line-height: 1.55;
+}
+.yc-state--without-icon p {
+  max-width: 620px;
 }
 .yc-state--error > span,
 .yc-state--forbidden > span {
@@ -771,7 +777,8 @@ a {
   }
   .yc-workspace-picker select {
     padding: 0 4px;
-    font-size: 0;
+    font-size: 10px;
+    text-align: center;
   }
   .yc-main-nav a {
     grid-template-columns: 1fr;
@@ -918,9 +925,6 @@ a {
   }
   .yc-metric-grid {
     grid-template-columns: 1fr;
-  }
-  .yc-secondary-column {
-    display: none;
   }
   .yc-responsive-data {
     border: 0;

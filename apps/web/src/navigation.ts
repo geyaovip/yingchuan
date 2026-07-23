@@ -10,7 +10,7 @@ const alwaysVisible: readonly NavigationItem[] = [
   { href: "/overview", label: "概览" },
   { href: "/brand", label: "品牌信息" },
   { href: "/reports", label: "AI 可见度" },
-  { href: "/prompts", label: "Prompt" },
+  { href: "/prompts", label: "分析问题" },
   { href: "/competitors", label: "竞品" },
   { href: "/sources", label: "认知源" },
   { href: "/optimization", label: "优化建议" },

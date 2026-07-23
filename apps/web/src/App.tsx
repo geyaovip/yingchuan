@@ -576,9 +576,7 @@ function Dashboard({
     <>
       <PageHeader
         actions={
-          <Button onClick={() => (globalThis.location.href = "/projects/new")}>
-            创建项目
-          </Button>
+          <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
         }
         description="查看品牌项目、分析进展和需要处理的事项。"
         title="工作台"
@@ -594,9 +592,7 @@ function Dashboard({
       ) : workspaces.length === 0 ? (
         <StatePanel
           action={
-            <Button onClick={() => (globalThis.location.href = "/workspaces")}>
-              创建工作区
-            </Button>
+            <Button onClick={() => navigate("/workspaces")}>创建工作区</Button>
           }
           description="先创建工作区，再邀请团队成员并建立第一个品牌项目。"
           title="从工作区开始"
@@ -675,14 +671,12 @@ function Dashboard({
       ) : (
         <StatePanel
           action={
-            <Button
-              onClick={() => (globalThis.location.href = "/projects/new")}
-            >
+            <Button onClick={() => navigate("/projects/new")}>
               创建第一个项目
             </Button>
           }
-          description={`当前工作区 ${workspaceId ?? "未选择"}的项目数据与权限已隔离。`}
-          title="建立或继续品牌项目"
+          description="当前工作区还没有品牌项目。创建项目后即可开始品牌识别和内容分析。"
+          title="创建第一个品牌项目"
         />
       )}
     </>
@@ -742,15 +736,17 @@ function NotificationsPage() {
           {rows.map((item) => (
             <li key={item.id}>
               <span>
-                <strong>{item.readAt ? item.title : `● ${item.title}`}</strong>
+                <strong>{item.title}</strong>
                 <small>
-                  {item.body} ·{" "}
-                  {new Date(item.createdAt).toLocaleString("zh-CN")}
+                  {item.body} · {formatDateTime(item.createdAt)}
                 </small>
               </span>
-              <Button intent="ghost" onClick={() => void open(item)}>
-                {item.href ? "查看" : "已读"}
-              </Button>
+              <div className="yc-actions">
+                {!item.readAt && <StatusBadge tone="info">未读</StatusBadge>}
+                <Button intent="ghost" onClick={() => void open(item)}>
+                  {item.href ? "查看" : item.readAt ? "已读" : "标为已读"}
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -820,7 +816,7 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
   return (
     <>
       <PageHeader
-        description="成员权限由服务端校验；角色调整和移除都会写入审计日志。"
+        description="邀请成员并按职责分配权限。角色调整和成员移除都会保留操作记录。"
         title="团队与权限"
       />
       {error && (
@@ -850,7 +846,7 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
                         const nextRole = event.target.value;
                         if (
                           globalThis.confirm(
-                            `确认将 ${row.user.displayEmail} 的角色改为 ${nextRole}？`,
+                            `确认将 ${row.user.displayEmail} 的角色改为${roleLabel(nextRole)}？`,
                           )
                         )
                           void execute(() =>
@@ -880,7 +876,7 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
                   key: "joined",
                   label: "加入时间",
                   render: (row: WorkspaceMemberResponse) =>
-                    new Date(row.createdAt).toLocaleString("zh-CN"),
+                    formatDateTime(row.createdAt),
                   secondary: true,
                 },
                 {
@@ -957,14 +953,14 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
                   <span>
                     <strong>{item.emailNormalized}</strong>
                     <small>
-                      {item.role.code} ·{" "}
-                      {new Date(item.expiresAt).toLocaleString("zh-CN")} 到期
+                      {roleLabel(item.role.code)} · 到期时间：
+                      {formatDateTime(item.expiresAt)}
                     </small>
                   </span>
                   <StatusBadge
                     tone={item.status === "active" ? "success" : "neutral"}
                   >
-                    {item.status}
+                    {invitationStatusLabel(item.status)}
                   </StatusBadge>
                 </li>
               ))}
@@ -1109,9 +1105,11 @@ function WorkspacePage({
 }) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState<string>();
   const create = async () => {
     if (!name.trim()) return;
     setSaving(true);
+    setCreateError(undefined);
     try {
       await api.request("/workspaces", {
         body: JSON.stringify({ name: name.trim() }),
@@ -1119,6 +1117,8 @@ function WorkspacePage({
       });
       setName("");
       await reload();
+    } catch (caught) {
+      setCreateError(messageFor(caught));
     } finally {
       setSaving(false);
     }
@@ -1129,6 +1129,13 @@ function WorkspacePage({
         description="工作区是成员权限和品牌数据的隔离边界。"
         title="工作区"
       />
+      {createError && (
+        <StatePanel
+          description={createError}
+          title="工作区创建失败"
+          tone="error"
+        />
+      )}
       {loading ? (
         <Skeleton />
       ) : error ? (
@@ -1144,10 +1151,14 @@ function WorkspacePage({
                     <span>
                       <strong>{workspace.name}</strong>
                       <small>
-                        {workspace.memberships[0]?.role.code ?? "member"}
+                        {roleLabel(
+                          workspace.memberships[0]?.role.code ?? "member",
+                        )}
                       </small>
                     </span>
-                    <span className="yc-meta">{workspace.slug}</span>
+                    <span className="yc-meta">
+                      工作区标识：{workspace.slug}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -1384,9 +1395,11 @@ function ProjectOnboarding({
   const navigate = useNavigate();
   const { project, loading, error, reload } = useProject(onProject, true);
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string>();
   const confirm = async (candidateId: string) => {
     if (!project) return;
     setSaving(true);
+    setActionError(undefined);
     try {
       const confirmed = await api.request<ProjectResponse>(
         `/projects/${project.id}/identification-confirmations`,
@@ -1394,6 +1407,8 @@ function ProjectOnboarding({
       );
       onProject(confirmed);
       void navigate(`/projects/${confirmed.id}/overview`);
+    } catch (caught) {
+      setActionError(messageFor(caught));
     } finally {
       setSaving(false);
     }
@@ -1407,6 +1422,9 @@ function ProjectOnboarding({
         tone="error"
       />
     );
+  const pendingCandidates = project.brandCandidates.filter(
+    (candidate) => candidate.status === "pending",
+  );
   return (
     <>
       <PageHeader
@@ -1416,9 +1434,16 @@ function ProjectOnboarding({
           </Button>
         }
         description="系统只把候选交给你确认，不会自动把同名品牌合并。"
-        metadata={`状态：${project.onboardingStatus}`}
+        metadata={`状态：${onboardingStatusLabel(project.onboardingStatus)}`}
         title={project.name}
       />
+      {actionError && (
+        <StatePanel
+          description={actionError}
+          title="品牌确认失败"
+          tone="error"
+        />
+      )}
       {project.status === "identifying" ? (
         <StatePanel
           description="识别任务正在后台运行。即使任务失败，当前输入也会作为草稿保留。"
@@ -1432,28 +1457,32 @@ function ProjectOnboarding({
           title="已保存为草稿"
           tone="error"
         />
-      ) : (
+      ) : pendingCandidates.length ? (
         <section className="yc-card yc-section-card">
           <h2>确认品牌候选</h2>
           <ul className="yc-plain-list">
-            {project.brandCandidates
-              .filter((candidate) => candidate.status === "pending")
-              .map((candidate) => (
-                <li key={candidate.id}>
-                  <span>
-                    <strong>{candidate.displayName}</strong>
-                    <small>{candidate.officialWebsite ?? "未提供官网"}</small>
-                  </span>
-                  <Button
-                    disabled={saving}
-                    onClick={() => void confirm(candidate.id)}
-                  >
-                    确认此品牌
-                  </Button>
-                </li>
-              ))}
+            {pendingCandidates.map((candidate) => (
+              <li key={candidate.id}>
+                <span>
+                  <strong>{candidate.displayName}</strong>
+                  <small>{candidate.officialWebsite ?? "未提供官网"}</small>
+                </span>
+                <Button
+                  disabled={saving}
+                  onClick={() => void confirm(candidate.id)}
+                >
+                  确认此品牌
+                </Button>
+              </li>
+            ))}
           </ul>
         </section>
+      ) : (
+        <StatePanel
+          action={<Button onClick={() => void reload()}>重新检查</Button>}
+          description="暂未找到可确认的品牌候选。你可以稍后重试，当前输入已安全保留。"
+          title="暂无品牌候选"
+        />
       )}
     </>
   );
@@ -1483,7 +1512,7 @@ function ProjectOverview({
             管理认知源
           </Button>
         }
-        description="品牌身份与数据源已冻结到当前项目边界。"
+        description="查看品牌身份、数据来源和当前分析准备情况。"
         title={project.name}
       />
       <div className="yc-content-grid">
@@ -1634,9 +1663,7 @@ function ProjectWebsite({
               label: "最近成功抓取",
               render: (row: KnowledgeSource) =>
                 row.lastSuccessfulFetchedAt
-                  ? new Date(row.lastSuccessfulFetchedAt).toLocaleString(
-                      "zh-CN",
-                    )
+                  ? formatDateTime(row.lastSuccessfulFetchedAt)
                   : "尚未成功抓取",
               secondary: true,
             },
@@ -1715,7 +1742,7 @@ function ProjectSources({
   return (
     <>
       <PageHeader
-        description="所有抓取均经过地址、DNS、重定向、类型、大小与超时检查。"
+        description="管理用于品牌分析的网站与内容来源，并查看每个来源的获取状态。"
         title="认知源"
       />
       <div className="yc-content-grid">
@@ -1731,7 +1758,7 @@ function ProjectSources({
                 {
                   key: "type",
                   label: "类型",
-                  render: (row) => row.type,
+                  render: (row) => sourceTypeLabel(row.type),
                   secondary: true,
                 },
                 {
@@ -1875,7 +1902,7 @@ function ProjectPrompts({
     return (
       <StatePanel
         description={projectError ?? "项目不存在。"}
-        title="无法加载 Prompt"
+        title="无法加载分析问题"
         tone="error"
       />
     );
@@ -1894,11 +1921,11 @@ function ProjectPrompts({
               )
             }
           >
-            生成建议 Prompt
+            生成建议问题
           </Button>
         }
-        description="Prompt 按分类、地域 Scope 和版本保存；编辑不会覆盖历史分析输入。"
-        title="Prompt"
+        description="维护分析问题、适用地区和版本。已完成分析使用的问题不会被后续编辑覆盖。"
+        title="分析问题"
       />
       <AnalysisEstimatePanel projectId={project.id} />
       {error && (
@@ -1923,9 +1950,9 @@ function ProjectPrompts({
                 },
                 {
                   key: "category",
-                  label: "分类 / Scope",
+                  label: "分类 / 范围",
                   render: (row) =>
-                    `${row.category} / ${row.scope}${row.requiresWebSearch ? " / 需联网" : ""}`,
+                    `${promptCategoryLabel(row.category)} / ${promptScopeLabel(row.scope)}${row.requiresWebSearch ? " / 需联网" : ""}`,
                   secondary: true,
                 },
                 {
@@ -1978,7 +2005,7 @@ function ProjectPrompts({
                           )
                         }
                       >
-                        变体
+                        生成变体
                       </Button>
                       <Button
                         intent="ghost"
@@ -1995,19 +2022,24 @@ function ProjectPrompts({
                             )
                         }
                       >
-                        历史
+                        版本记录
                       </Button>
                       <Button
                         disabled={busy}
                         intent="ghost"
-                        onClick={() =>
-                          void execute(() =>
-                            api.request(
-                              `/projects/${project.id}/prompts/${row.id}`,
-                              { method: "DELETE" },
-                            ),
+                        onClick={() => {
+                          if (
+                            globalThis.confirm(
+                              `确认删除“${row.text}”？历史分析仍会保留当时使用的问题版本。`,
+                            )
                           )
-                        }
+                            void execute(() =>
+                              api.request(
+                                `/projects/${project.id}/prompts/${row.id}`,
+                                { method: "DELETE" },
+                              ),
+                            );
+                        }}
                       >
                         删除
                       </Button>
@@ -2020,7 +2052,7 @@ function ProjectPrompts({
           ) : (
             <StatePanel
               description="生成一组建议，或手动添加贴近真实用户表达的问题。"
-              title="暂无 Prompt"
+              title="暂无分析问题"
             />
           )}
           {history.length > 0 && (
@@ -2060,7 +2092,7 @@ function ProjectPrompts({
                   <option value="trust">信任</option>
                 </select>
               </FormField>
-              <FormField label="Scope">
+              <FormField label="适用范围">
                 <select
                   onChange={(event) => setScope(event.target.value)}
                   value={scope}
@@ -2103,7 +2135,7 @@ function ProjectPrompts({
                 onChange={(event) => setRequiresWebSearch(event.target.checked)}
                 type="checkbox"
               />
-              需要模型原生联网（不支持的模型将跳过）
+              需要联网获取最新信息（不支持联网的模型会自动跳过）
             </label>
             <Button
               disabled={busy || !text.trim()}
@@ -2125,7 +2157,7 @@ function ProjectPrompts({
                 })
               }
             >
-              添加 Prompt
+              添加分析问题
             </Button>
           </section>
           <section className="yc-card yc-section-card">
@@ -2196,8 +2228,7 @@ function AnalysisEstimatePanel({ projectId }: { readonly projectId: string }) {
         <div>
           <h2>分析估算</h2>
           <p>
-            按当前启用
-            Prompt、模型版本和价格计算，不支持所需原生联网的组合会跳过。
+            根据当前启用的分析问题、模型版本和价格计算；不满足联网要求的模型会自动跳过。
           </p>
         </div>
         <Button disabled={busy} intent="ghost" onClick={() => void load()}>
@@ -2209,11 +2240,11 @@ function AnalysisEstimatePanel({ projectId }: { readonly projectId: string }) {
         <div className="yc-metric-grid">
           <article>
             <strong>{estimate.eligibleRunCount}</strong>
-            <span>可执行运行</span>
+            <span>预计执行次数</span>
           </article>
           <article>
             <strong>{estimate.skippedRunCount}</strong>
-            <span>不支持已跳过</span>
+            <span>已跳过</span>
           </article>
           <article>
             <strong>{formatMicros(estimate.estimatedCostMicros)}</strong>
@@ -2331,7 +2362,7 @@ function ProjectAnalysis({
             {busy ? "提交中…" : "开始新分析"}
           </Button>
         }
-        description="提交时冻结 Prompt、模型能力与价格；页面刷新后可从数据库恢复进度。"
+        description="选择分析问题并查看预计用量，提交后可随时离开页面，任务会继续运行。"
         title="AI 可见度分析"
       />
       {error && (
@@ -2351,7 +2382,7 @@ function ProjectAnalysis({
             <StatusBadge
               tone={report.status === "published" ? "success" : "neutral"}
             >
-              {report.status}
+              {reportStatusLabel(report.status)}
             </StatusBadge>
           </div>
           {report.limitationSummary && (
@@ -2388,11 +2419,19 @@ function ProjectAnalysis({
                 <li key={item.id}>
                   <span>
                     <strong>
-                      {item.priority} · {item.title}
+                      {recommendationPriorityLabel(item.priority)} ·{" "}
+                      {recommendationTitle(item.title, item.category)}
                     </strong>
-                    <small>{item.description}</small>
+                    <small>
+                      {recommendationDescription(
+                        item.description,
+                        item.category,
+                      )}
+                    </small>
                   </span>
-                  <span className="yc-meta">{item.effort}</span>
+                  <span className="yc-meta">
+                    投入 {recommendationEffortLabel(item.effort)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -2439,11 +2478,11 @@ function ProjectAnalysis({
               <h2>{score.overallScore.toFixed(1)} / 100</h2>
               <p>
                 {score.scoreVersion} · 置信度 {score.confidence.toFixed(1)} (
-                {score.confidenceLevel})
+                {confidenceLevelLabel(score.confidenceLevel)})
               </p>
             </div>
             <StatusBadge tone={score.diagnosticOnly ? "warning" : "success"}>
-              {score.diagnosticOnly ? "诊断结果" : "可发布趋势"}
+              {score.diagnosticOnly ? "诊断结果" : "可用于趋势对比"}
             </StatusBadge>
           </div>
           <div className="yc-metric-grid">
@@ -2451,10 +2490,10 @@ function ProjectAnalysis({
               <article key={item.dimensionCode}>
                 <strong>
                   {item.value === null || item.value === undefined
-                    ? "N/A"
+                    ? "暂无数据"
                     : Number(item.value).toFixed(1)}
                 </strong>
-                <span>{item.dimensionCode}</span>
+                <span>{scoreDimensionLabel(item.dimensionCode)}</span>
               </article>
             ))}
           </div>
@@ -2471,11 +2510,11 @@ function ProjectAnalysis({
             <div className="yc-section-heading">
               <div>
                 <h2>最新任务</h2>
-                <p>{new Date(selected.createdAt).toLocaleString("zh-CN")}</p>
+                <p>{formatDateTime(selected.createdAt)}</p>
               </div>
               <div className="yc-inline-actions">
                 <StatusBadge tone={jobTone(selected.status)}>
-                  {selected.status}
+                  {jobStatusLabel(selected.status)}
                 </StatusBadge>
                 <Button
                   intent="ghost"
@@ -2552,7 +2591,7 @@ function ProjectAnalysis({
                   },
                   {
                     key: "prompt",
-                    label: "Prompt",
+                    label: "分析问题",
                     render: (
                       row: NonNullable<AnalysisJobResponse["runs"]>[number],
                     ) => row.promptVersion.text,
@@ -2564,7 +2603,7 @@ function ProjectAnalysis({
                       row: NonNullable<AnalysisJobResponse["runs"]>[number],
                     ) => (
                       <StatusBadge tone={jobTone(row.status)}>
-                        {row.status}
+                        {jobStatusLabel(row.status)}
                       </StatusBadge>
                     ),
                   },
@@ -2653,9 +2692,9 @@ function AnalysisJobDetail() {
             返回
           </Button>
         }
-        description="任务状态以服务端记录为准；页面刷新或断线重连不会丢失进度。"
-        metadata={`创建于 ${new Date(job.createdAt).toLocaleString("zh-CN")}`}
-        title={`分析任务 ${job.id.slice(0, 8)}`}
+        description="任务状态以系统记录为准；刷新页面或重新连接后仍可继续查看进度。"
+        metadata={`创建于 ${formatDateTime(job.createdAt)}`}
+        title="分析任务详情"
       />
       <div className="yc-metric-grid">
         <article>
@@ -2681,7 +2720,9 @@ function AnalysisJobDetail() {
             <h2>运行状态</h2>
             <p>预估成本 {formatMicros(job.estimatedCostMicros)}</p>
           </div>
-          <StatusBadge tone={jobTone(job.status)}>{job.status}</StatusBadge>
+          <StatusBadge tone={jobTone(job.status)}>
+            {jobStatusLabel(job.status)}
+          </StatusBadge>
         </div>
         <div className="yc-actions">
           {["queued", "running"].includes(job.status) && (
@@ -2728,7 +2769,7 @@ function AnalysisJobDetail() {
             },
             {
               key: "prompt",
-              label: "Prompt",
+              label: "分析问题",
               render: (row: NonNullable<AnalysisJobResponse["runs"]>[number]) =>
                 row.promptVersion.text,
             },
@@ -2739,7 +2780,7 @@ function AnalysisJobDetail() {
                 row: NonNullable<AnalysisJobResponse["runs"]>[number],
               ) => (
                 <StatusBadge tone={jobTone(row.status)}>
-                  {row.status}
+                  {jobStatusLabel(row.status)}
                 </StatusBadge>
               ),
             },
@@ -2796,7 +2837,7 @@ function ProjectHistory({
   return (
     <>
       <PageHeader
-        description="报告版本生成后保持不可变；不同评分版本默认不直接连成趋势。"
+        description="查看历次分析报告和评分版本。评分口径不同的结果不会直接合并为趋势。"
         title="历史报告"
       />
       {error ? (
@@ -2846,7 +2887,7 @@ function ProjectHistory({
                 <StatusBadge
                   tone={row.status === "published" ? "success" : "neutral"}
                 >
-                  {row.status}
+                  {reportStatusLabel(row.status)}
                 </StatusBadge>
               ),
             },
@@ -2968,7 +3009,7 @@ function ProjectOptimization({
                 label: "优先级",
                 render: (
                   row: ReportVersionResponse["recommendations"][number],
-                ) => row.priority,
+                ) => recommendationPriorityLabel(row.priority),
               },
               {
                 key: "title",
@@ -2977,8 +3018,12 @@ function ProjectOptimization({
                   row: ReportVersionResponse["recommendations"][number],
                 ) => (
                   <span>
-                    <strong>{row.title}</strong>
-                    <small>{row.description}</small>
+                    <strong>
+                      {recommendationTitle(row.title, row.category)}
+                    </strong>
+                    <small>
+                      {recommendationDescription(row.description, row.category)}
+                    </small>
                   </span>
                 ),
               },
@@ -2987,21 +3032,21 @@ function ProjectOptimization({
                 label: "影响",
                 render: (
                   row: ReportVersionResponse["recommendations"][number],
-                ) => row.impact,
+                ) => row.impact.replaceAll("Prompt", "分析问题"),
               },
               {
                 key: "effort",
                 label: "投入",
                 render: (
                   row: ReportVersionResponse["recommendations"][number],
-                ) => row.effort,
+                ) => recommendationEffortLabel(row.effort),
               },
               {
                 key: "category",
                 label: "类别",
                 render: (
                   row: ReportVersionResponse["recommendations"][number],
-                ) => row.category,
+                ) => scoreDimensionLabel(row.category),
                 secondary: true,
               },
             ]}
@@ -3067,7 +3112,7 @@ function ProjectReportDetail({
             返回历史报告
           </Button>
         }
-        description="报告内容来自冻结的模型运行、评分结果和证据快照。"
+        description="查看本次分析的评分、证据、模型运行记录和优化建议。"
         metadata={`版本 ${report.versionNumber} · ${report.contentSnapshot.scoreVersion}`}
         title={report.title}
       />
@@ -3100,12 +3145,12 @@ function ProjectReportDetail({
         <div className="yc-section-heading">
           <div>
             <h2>模型与问题明细</h2>
-            <p>每条记录保留模型、Prompt 和运行状态。</p>
+            <p>每条记录保留模型、分析问题和运行状态。</p>
           </div>
           <StatusBadge
             tone={report.status === "published" ? "success" : "neutral"}
           >
-            {report.status}
+            {reportStatusLabel(report.status)}
           </StatusBadge>
         </div>
         <ResponsiveData
@@ -3119,7 +3164,7 @@ function ProjectReportDetail({
             },
             {
               key: "prompt",
-              label: "Prompt",
+              label: "分析问题",
               render: (
                 row: ReportVersionResponse["contentSnapshot"]["modelBreakdown"][number],
               ) => row.prompt,
@@ -3131,7 +3176,7 @@ function ProjectReportDetail({
                 row: ReportVersionResponse["contentSnapshot"]["modelBreakdown"][number],
               ) => (
                 <StatusBadge tone={jobTone(row.status)}>
-                  {row.status}
+                  {jobStatusLabel(row.status)}
                 </StatusBadge>
               ),
             },
@@ -3147,12 +3192,16 @@ function ProjectReportDetail({
               <li key={item.id}>
                 <span>
                   <strong>
-                    {item.priority} · {item.title}
+                    {recommendationPriorityLabel(item.priority)} ·{" "}
+                    {recommendationTitle(item.title, item.category)}
                   </strong>
-                  <small>{item.description}</small>
+                  <small>
+                    {recommendationDescription(item.description, item.category)}
+                  </small>
                 </span>
                 <span className="yc-meta">
-                  影响 {item.impact} · 投入 {item.effort}
+                  影响 {item.impact.replaceAll("Prompt", "分析问题")} · 投入{" "}
+                  {recommendationEffortLabel(item.effort)}
                 </span>
               </li>
             ))}
@@ -3368,7 +3417,7 @@ function ProjectCompetitors({
                         : "neutral"
                   }
                 >
-                  {row.status}
+                  {competitorStatusLabel(row.status)}
                 </StatusBadge>
               ),
             },
@@ -3413,6 +3462,190 @@ function jobTone(status: string): "success" | "danger" | "neutral" | "warning" {
   return "neutral";
 }
 
+function jobStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    cancelled: "已取消",
+    completed: "已完成",
+    failed: "失败",
+    outcome_unknown: "结果待确认",
+    partially_completed: "部分完成",
+    queued: "排队中",
+    running: "运行中",
+    skipped: "已跳过",
+    succeeded: "成功",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function reportStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    archived: "已归档",
+    draft: "草稿",
+    failed: "生成失败",
+    generating: "生成中",
+    published: "已发布",
+    ready: "待发布",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function invitationStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    accepted: "已接受",
+    active: "待接受",
+    expired: "已过期",
+    revoked: "已撤销",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function competitorStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    candidate: "待确认",
+    confirmed: "已确认",
+    excluded: "已排除",
+    merged: "已合并",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function sourceTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    official_social: "官方社交账号",
+    official_website: "官方网站",
+    other: "其他公开来源",
+    public_profile: "公开资料页",
+  };
+  return labels[type] ?? "其他公开来源";
+}
+
+function roleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    admin: "管理员",
+    analyst: "分析师",
+    editor: "编辑者",
+    member: "成员",
+    operator: "运营",
+    owner: "所有者",
+    viewer: "查看者",
+  };
+  return labels[role] ?? "自定义角色";
+}
+
+function promptCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    alternative: "替代方案",
+    brand_awareness: "品牌认知",
+    comparison: "品牌对比",
+    factual: "事实信息",
+    location: "位置发现",
+    nearby: "附近推荐",
+    price: "价格",
+    product_or_service: "产品与服务",
+    recommendation: "品牌推荐",
+    scenario: "使用场景",
+    store_specific: "指定门店",
+    trust: "口碑与信任",
+  };
+  return labels[category] ?? "其他";
+}
+
+function promptScopeLabel(scope: string): string {
+  const labels: Record<string, string> = {
+    city: "城市",
+    country: "国家",
+    district: "区县",
+    global: "不限地区",
+    nearby: "附近",
+    province: "省份",
+    store: "门店",
+  };
+  return labels[scope] ?? "其他范围";
+}
+
+function usageEntryTypeLabel(entryType: string): string {
+  const labels: Record<string, string> = {
+    adjustment: "额度调整",
+    debit: "实际扣减",
+    grant: "额度增加",
+    release: "释放预留",
+    reservation: "额度预留",
+  };
+  return labels[entryType] ?? "其他变动";
+}
+
+function usageSourceLabel(source: string): string {
+  const labels: Record<string, string> = {
+    analysis_actual_cost: "分析实际用量",
+    analysis_estimate: "分析预估",
+    analysis_job: "分析任务",
+    analysis_reservation_release: "分析任务结算",
+    test_grant: "系统发放",
+  };
+  return labels[source] ?? "系统记录";
+}
+
+function scoreDimensionLabel(dimension: string): string {
+  const labels: Record<string, string> = {
+    competitive_position: "竞争位置",
+    consistency: "模型一致性",
+    factual_accuracy: "事实准确度",
+    mention_rate: "品牌提及率",
+    model_coverage: "模型覆盖率",
+    prompt_coverage: "问题覆盖率",
+    ranking_strength: "推荐排名",
+    recommendation_rate: "推荐率",
+  };
+  return labels[dimension] ?? "综合表现";
+}
+
+function recommendationPriorityLabel(priority: string): string {
+  const labels: Record<string, string> = {
+    P0: "高优先级",
+    P1: "中优先级",
+    P2: "低优先级",
+    P3: "可选优化",
+  };
+  return labels[priority] ?? "待评估";
+}
+
+function recommendationEffortLabel(effort: string): string {
+  const labels: Record<string, string> = {
+    high: "较高",
+    low: "较低",
+    medium: "中等",
+  };
+  return labels[effort] ?? "待评估";
+}
+
+function confidenceLevelLabel(level: string): string {
+  const labels: Record<string, string> = {
+    high: "高",
+    low: "低",
+    medium: "中",
+  };
+  return labels[level] ?? "待评估";
+}
+
+function recommendationTitle(title: string, category: string): string {
+  return title.replace(category, scoreDimensionLabel(category));
+}
+
+function recommendationDescription(
+  description: string,
+  category: string,
+): string {
+  return description.replaceAll(category, scoreDimensionLabel(category));
+}
+
+function formatDateTime(value: string): string {
+  return `${new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Shanghai",
+  }).format(new Date(value))}（北京时间）`;
+}
+
 function UsagePage({ workspaceId }: { readonly workspaceId?: string }) {
   const [usage, setUsage] = useState<UsageResponse>();
   const [error, setError] = useState<string>();
@@ -3426,7 +3659,7 @@ function UsagePage({ workspaceId }: { readonly workspaceId?: string }) {
   return (
     <>
       <PageHeader
-        description="P0 不接真实支付；额度变动使用只追加账本，冲正不修改历史记录。"
+        description="查看额度余额与全部变动记录。每次增加、扣减和冲正都会单独留痕，方便核对。"
         title="用量与额度"
       />
       {error ? (
@@ -3446,7 +3679,7 @@ function UsagePage({ workspaceId }: { readonly workspaceId?: string }) {
                   key: "type",
                   label: "类型",
                   render: (row: UsageResponse["entries"][number]) =>
-                    row.entryType,
+                    usageEntryTypeLabel(row.entryType),
                 },
                 {
                   key: "amount",
@@ -3457,16 +3690,14 @@ function UsagePage({ workspaceId }: { readonly workspaceId?: string }) {
                 {
                   key: "source",
                   label: "来源",
-                  render: (row: UsageResponse["entries"][number]) => row.source,
+                  render: (row: UsageResponse["entries"][number]) =>
+                    usageSourceLabel(row.source),
                 },
                 {
                   key: "time",
-                  label: "时间（UTC）",
+                  label: "时间",
                   render: (row: UsageResponse["entries"][number]) =>
-                    new Date(row.createdAt)
-                      .toISOString()
-                      .slice(0, 19)
-                      .replace("T", " "),
+                    formatDateTime(row.createdAt),
                   secondary: true,
                 },
               ]}
@@ -3548,7 +3779,17 @@ function ProjectStatus({ status }: { readonly status: string }) {
     unavailable: "不可用",
     waiting_confirmation: "待确认",
   };
-  return <StatusBadge tone={tone}>{labels[status] ?? status}</StatusBadge>;
+  return <StatusBadge tone={tone}>{labels[status] ?? "未知状态"}</StatusBadge>;
+}
+
+function onboardingStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    confirmed: "已确认",
+    identifying: "识别中",
+    needs_confirmation: "待确认",
+    ready: "已就绪",
+  };
+  return labels[status] ?? "处理中";
 }
 
 function NotFoundPage() {
