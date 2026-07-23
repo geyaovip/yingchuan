@@ -21,6 +21,7 @@ import { ReportApplicationService } from "@yingchuan/reports";
 import {
   AlertApplicationService,
   NotificationApplicationService,
+  OperationsDailyReportApplicationService,
   TelegramHttpAdapter,
 } from "@yingchuan/notifications";
 import { type Job, Worker } from "bullmq";
@@ -51,6 +52,7 @@ export async function writeWorkerHeartbeat(
 export class WorkerService implements OnModuleInit, OnApplicationShutdown {
   private database?: PrismaClient;
   private alertScheduler?: NodeJS.Timeout;
+  private dailyReportScheduler?: NodeJS.Timeout;
   private dispatcher?: NodeJS.Timeout;
   private lifecycleScheduler?: NodeJS.Timeout;
   private queue?: BullMqOutboxQueue;
@@ -103,6 +105,11 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
       telegram,
     );
     const alerts = new AlertApplicationService(
+      this.database,
+      notificationSecretBox,
+      telegram,
+    );
+    const dailyReports = new OperationsDailyReportApplicationService(
       this.database,
       notificationSecretBox,
       telegram,
@@ -220,6 +227,25 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
     this.alertScheduler = setInterval(runAlerts, 60_000);
     this.alertScheduler.unref();
     runAlerts();
+    const runDailyReports = () =>
+      void dailyReports
+        .runScheduled()
+        .then(() => dailyReports.processDueDeliveries())
+        .catch((error: unknown) => {
+          logger.error(
+            {
+              errorCode:
+                error instanceof Error
+                  ? error.message
+                  : "OPERATIONS_DAILY_REPORT_SCHEDULER_FAILED",
+              errorType: error instanceof Error ? error.name : "UnknownError",
+            },
+            "operations_daily_report_scheduler_failed",
+          );
+        });
+    this.dailyReportScheduler = setInterval(runDailyReports, 60_000);
+    this.dailyReportScheduler.unref();
+    runDailyReports();
     void this.dispatchOutbox();
     logger.info({ result: "ready" }, "worker_context_ready");
   }
@@ -227,6 +253,7 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
   async onApplicationShutdown(): Promise<void> {
     if (this.dispatcher) clearInterval(this.dispatcher);
     if (this.alertScheduler) clearInterval(this.alertScheduler);
+    if (this.dailyReportScheduler) clearInterval(this.dailyReportScheduler);
     if (this.lifecycleScheduler) clearInterval(this.lifecycleScheduler);
     await this.consumer?.close();
     await this.queue?.close();

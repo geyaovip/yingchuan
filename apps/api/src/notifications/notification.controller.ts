@@ -14,6 +14,7 @@ import {
 import type {
   AlertApplicationService,
   NotificationApplicationService,
+  OperationsDailyReportApplicationService,
 } from "@yingchuan/notifications";
 import type { Request } from "express";
 import { z } from "zod";
@@ -22,6 +23,7 @@ import { AuthService } from "../auth/auth.service.js";
 import type { AuthenticatedSession } from "../auth/auth.types.js";
 import {
   ALERT_SERVICE,
+  DAILY_REPORT_SERVICE,
   NOTIFICATION_SERVICE,
 } from "./notification.constants.js";
 
@@ -31,6 +33,8 @@ export class NotificationController {
     @Inject(AuthService) private readonly authService: AuthService,
     @Inject(ALERT_SERVICE)
     private readonly alerts: AlertApplicationService,
+    @Inject(DAILY_REPORT_SERVICE)
+    private readonly dailyReports: OperationsDailyReportApplicationService,
     @Inject(NOTIFICATION_SERVICE)
     private readonly notifications: NotificationApplicationService,
   ) {}
@@ -42,6 +46,14 @@ export class NotificationController {
     const auth = await this.auth(request);
     return {
       data: await this.perform(() => this.alerts.list(this.actor(auth))),
+    };
+  }
+  @Get("admin/operations-daily-reports") async dailyReportList(
+    @Req() request: Request,
+  ) {
+    const auth = await this.auth(request);
+    return {
+      data: await this.perform(() => this.dailyReports.list(this.actor(auth))),
     };
   }
   @Patch("admin/alerts/:alertId/acknowledge") async acknowledgeAlert(

@@ -179,6 +179,33 @@ interface AlertResponse {
   readonly unit: string;
 }
 
+interface OperationsDailyReportResponse {
+  readonly completedAt?: string | null;
+  readonly errorCode?: string | null;
+  readonly id: string;
+  readonly reportDate: string;
+  readonly snapshot?: {
+    readonly analysisJobs: number;
+    readonly analysisSuccessRate: number | null;
+    readonly failedAnalysisJobs: number;
+    readonly keyChanges: readonly string[];
+    readonly modelCostMicros: string;
+    readonly newProjects: number;
+    readonly newUsers: number;
+    readonly paidUsers: number | null;
+    readonly paidUsersUnavailableReason: string;
+    readonly partiallyCompletedAnalysisJobs: number;
+    readonly revenueMicros: string | null;
+    readonly revenueUnavailableReason: string;
+    readonly suggestions: readonly string[];
+  } | null;
+  readonly status: "running" | "completed" | "failed" | "dead_letter";
+  readonly summary?: string | null;
+  readonly timezone: string;
+  readonly windowEnd: string;
+  readonly windowStart: string;
+}
+
 const navigation: readonly NavigationItem[] = [
   { href: "/admin", icon: "dashboard", label: "管理首页" },
   { href: "/admin/users", icon: "team", label: "用户与工作区" },
@@ -187,6 +214,7 @@ const navigation: readonly NavigationItem[] = [
   { href: "/admin/models", icon: "models", label: "模型" },
   { href: "/admin/agent", icon: "agent", label: "运营助手" },
   { href: "/admin/alerts", icon: "notifications", label: "告警" },
+  { href: "/admin/daily-reports", icon: "usage", label: "运营日报" },
   {
     href: "/admin/notification-channels",
     icon: "notifications",
@@ -321,6 +349,7 @@ function AdminShell({ session }: { readonly session: SessionView }) {
         <Route path="/admin/agent/runs" element={<AdminAgent />} />
         <Route path="/admin/alerts" element={<AdminAlerts />} />
         <Route path="/admin/alert-rules" element={<AdminAlerts />} />
+        <Route path="/admin/daily-reports" element={<AdminDailyReports />} />
         <Route
           path="/admin/notification-channels"
           element={<TelegramSettings />}
@@ -1433,6 +1462,139 @@ function formatAlertMetric(value: string, unit: string) {
   return `${Math.round(number)} 个`;
 }
 
+function AdminDailyReports() {
+  const [rows, setRows] = useState<readonly OperationsDailyReportResponse[]>();
+  const [error, setError] = useState<string>();
+  const load = () =>
+    api
+      .request<readonly OperationsDailyReportResponse[]>(
+        "/admin/operations-daily-reports",
+      )
+      .then((result) => {
+        setRows(result);
+        setError(undefined);
+      })
+      .catch((caught) => setError(messageFor(caught)));
+  useEffect(() => {
+    void load();
+  }, []);
+  return (
+    <>
+      <PageHeader
+        title="运营日报"
+        description="每天 09:00（北京时间）生成前一自然日的平台数据快照；Telegram 已启用时自动推送。"
+        actions={<Button onClick={() => void load()}>刷新</Button>}
+      />
+      {error ? (
+        <StatePanel description={error} title="日报加载失败" tone="error" />
+      ) : !rows ? (
+        <Skeleton lines={6} />
+      ) : rows.length === 0 ? (
+        <StatePanel
+          description="Worker 到达首个调度窗口后会自动生成日报。"
+          title="暂无运营日报"
+        />
+      ) : (
+        <ResponsiveData
+          rows={rows}
+          columns={[
+            {
+              key: "date",
+              label: "报告日期",
+              render: (row) =>
+                new Intl.DateTimeFormat("zh-CN", {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }).format(new Date(row.reportDate)),
+            },
+            {
+              key: "status",
+              label: "状态",
+              render: (row) => (
+                <StatusBadge
+                  tone={
+                    row.status === "completed"
+                      ? "success"
+                      : row.status === "running"
+                        ? "warning"
+                        : "danger"
+                  }
+                >
+                  {dailyReportStatusLabel(row.status)}
+                </StatusBadge>
+              ),
+            },
+            {
+              key: "metrics",
+              label: "核心指标",
+              render: (row) =>
+                row.snapshot ? (
+                  <div>
+                    <strong>
+                      新增用户 {row.snapshot.newUsers} · 新增项目{" "}
+                      {row.snapshot.newProjects}
+                    </strong>
+                    <small className="yc-table-secondary">
+                      分析任务 {row.snapshot.analysisJobs} · 成功率{" "}
+                      {row.snapshot.analysisSuccessRate === null
+                        ? "无任务"
+                        : `${row.snapshot.analysisSuccessRate.toFixed(2)}%`}
+                    </small>
+                    <small className="yc-table-secondary">
+                      付费用户{" "}
+                      {row.snapshot.paidUsers ??
+                        row.snapshot.paidUsersUnavailableReason}{" "}
+                      · 收入{" "}
+                      {row.snapshot.revenueMicros === null
+                        ? row.snapshot.revenueUnavailableReason
+                        : adminFormatMicros(BigInt(row.snapshot.revenueMicros))}
+                    </small>
+                  </div>
+                ) : (
+                  (row.errorCode ?? "生成中")
+                ),
+            },
+            {
+              key: "cost",
+              label: "成本 / 异常",
+              render: (row) =>
+                row.snapshot
+                  ? `${adminFormatMicros(BigInt(row.snapshot.modelCostMicros))} / ${
+                      row.snapshot.failedAnalysisJobs +
+                      row.snapshot.partiallyCompletedAnalysisJobs
+                    } 个`
+                  : "—",
+            },
+            {
+              key: "change",
+              label: "重点变化与建议",
+              render: (row) =>
+                row.snapshot ? (
+                  <div>
+                    <span>{row.snapshot.keyChanges.join("；")}</span>
+                    <small className="yc-table-secondary">
+                      {row.snapshot.suggestions.join("；")}
+                    </small>
+                  </div>
+                ) : (
+                  "—"
+                ),
+              secondary: true,
+            },
+            {
+              key: "window",
+              label: "数据窗口",
+              render: (row) =>
+                `${adminFormatDateTime(row.windowStart)} 至 ${adminFormatDateTime(row.windowEnd)}`,
+              secondary: true,
+            },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
 function TelegramSettings() {
   const [config, setConfig] = useState<TelegramConfigResponse>();
   const [deliveries, setDeliveries] = useState<
@@ -1972,6 +2134,16 @@ function deliveryStatusLabel(status: string): string {
     retrying: "重试中",
     sending: "发送中",
     sent: "已发送",
+  };
+  return labels[status] ?? "未知状态";
+}
+
+function dailyReportStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    completed: "已完成",
+    dead_letter: "已转人工处理",
+    failed: "等待重试",
+    running: "生成中",
   };
   return labels[status] ?? "未知状态";
 }

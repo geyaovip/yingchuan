@@ -53,6 +53,7 @@
 | D-047 | accepted   | 2026-07-22 | P0 管理端只允许 `geyaovip@163.com` 登录                                     | 邮箱规范化后精确匹配 `ADMIN_ALLOWED_EMAILS`，初始化为 `super_admin`；其他邮箱不获得管理 Session/路由权限。该限制仅针对管理端，用户端邮箱验证码登录保持      |
 | D-048 | accepted   | 2026-07-23 | 根域 `chatway.chat` 部署独立响应式产品官网                                  | 使用 Vite + React + TypeScript 静态站点和 Cloudflare Pages；官网只展示产品信息并跳转 `app.chatway.chat`，不调用生产 API、不建立认证 Session                 |
 | D-049 | accepted   | 2026-07-23 | 用户端与管理端 Session 默认有效期为 365 天                                  | 提供接近长期登录的体验；保留主动退出、账号停用和服务端撤销能力，不创建无法撤销的永久 Session                                                                |
+| D-050 | accepted   | 2026-07-23 | 平台运营日报每天 09:00（Asia/Shanghai）生成前一自然日快照                   | 调度窗口转换为 UTC 并持久化；P0 无订单/付费套餐，付费用户和收入明确标记为暂无数据，不用额度或模型成本冒充收入                                               |
 
 ## 新增决策模板
 

@@ -996,6 +996,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/admin/operations-daily-reports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["NotificationController_dailyReportList"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/admin/alerts/{alertId}/acknowledge": {
     parameters: {
       query?: never;
@@ -2361,6 +2377,23 @@ export interface operations {
     };
   };
   NotificationController_alertList: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  NotificationController_dailyReportList: {
     parameters: {
       query?: never;
       header?: never;

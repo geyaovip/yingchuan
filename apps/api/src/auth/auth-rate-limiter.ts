@@ -3,9 +3,19 @@ import { getRuntimeValue } from "@yingchuan/runtime-config";
 import { createClient, type RedisClientType } from "redis";
 
 const consumeScript = `
-local current = redis.call('INCR', KEYS[1])
-if current == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
-if current > tonumber(ARGV[2]) then return 0 end
+for index, key in ipairs(KEYS) do
+  local current = tonumber(redis.call('GET', key) or '0')
+  local limit = tonumber(ARGV[index * 2])
+  if current >= limit then return 0 end
+end
+
+for index, key in ipairs(KEYS) do
+  local current = redis.call('INCR', key)
+  if current == 1 then
+    redis.call('PEXPIRE', key, ARGV[index * 2 - 1])
+  end
+end
+
 return 1
 `;
 
@@ -19,15 +29,16 @@ export class AuthRateLimiter implements OnApplicationShutdown {
   async consume(
     keys: readonly { key: string; limit: number; ttlMs: number }[],
   ): Promise<boolean> {
+    if (keys.length === 0) return true;
     const client = await this.getClient();
-    for (const item of keys) {
-      const allowed = await client.eval(consumeScript, {
-        arguments: [String(item.ttlMs), String(item.limit)],
-        keys: [`${this.prefix}:${item.key}`],
-      });
-      if (allowed !== 1) return false;
-    }
-    return true;
+    const allowed = await client.eval(consumeScript, {
+      arguments: keys.flatMap((item) => [
+        String(item.ttlMs),
+        String(item.limit),
+      ]),
+      keys: keys.map((item) => `${this.prefix}:${item.key}`),
+    });
+    return allowed === 1;
   }
 
   async onApplicationShutdown(): Promise<void> {

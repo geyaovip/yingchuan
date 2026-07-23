@@ -202,6 +202,7 @@ GET    /api/v1/admin/notification-channels/telegram
 PUT    /api/v1/admin/notification-channels/telegram
 POST   /api/v1/admin/notification-channels/telegram/test
 GET    /api/v1/admin/notification-deliveries
+GET    /api/v1/admin/operations-daily-reports
 
 GET    /api/v1/admin/data-lifecycle/legal-holds
 POST   /api/v1/admin/data-lifecycle/legal-holds

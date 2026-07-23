@@ -96,6 +96,7 @@
 | `/admin/agent`、`/admin/agent/runs`   |  P0 | 数据问答、运行、动作、审计                                 |
 | `/admin/notification-channels`        |  P0 | Telegram 配置、掩码显示、测试                              |
 | `/admin/alerts`、`/admin/alert-rules` |  P1 | 告警、规则、确认、恢复                                     |
+| `/admin/daily-reports`                |  P1 | 每日运营快照、重点变化、建议和数据窗口                     |
 | `/admin/data-quality`                 |  P2 | 品牌、门店、来源和解析审核                                 |
 | `/admin/support`                      |  P2 | 用户上下文、工单、回复草稿                                 |
 | `/admin/usage`                        |  P0 | 额度账本、模型成本和用量；只读与受审计额度调整，无支付订单 |

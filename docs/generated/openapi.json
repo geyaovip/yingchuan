@@ -855,6 +855,18 @@
         "tags": ["Notification"]
       }
     },
+    "/api/v1/admin/operations-daily-reports": {
+      "get": {
+        "operationId": "NotificationController_dailyReportList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
     "/api/v1/admin/alerts/{alertId}/acknowledge": {
       "patch": {
         "operationId": "NotificationController_acknowledgeAlert",

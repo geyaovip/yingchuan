@@ -146,6 +146,13 @@ enum AlertEvaluationRunStatus {
   dead_letter
 }
 
+enum OperationsDailyReportStatus {
+  running
+  completed
+  failed
+  dead_letter
+}
+
 enum OutboxStatus {
   pending
   published
@@ -1422,6 +1429,29 @@ model AlertEvaluationRun {
 
   @@index([status, updatedAt])
   @@map("alert_evaluation_runs")
+}
+
+model OperationsDailyReport {
+  id             String                      @id @db.Uuid
+  idempotencyKey String                      @unique @map("idempotency_key") @db.VarChar(200)
+  reportDate     DateTime                    @map("report_date") @db.Date
+  timezone       String                      @db.VarChar(100)
+  status         OperationsDailyReportStatus @default(running)
+  attempts       Int                         @default(1)
+  maxAttempts    Int                         @default(3) @map("max_attempts")
+  windowStart    DateTime                    @map("window_start") @db.Timestamptz(3)
+  windowEnd      DateTime                    @map("window_end") @db.Timestamptz(3)
+  snapshot       Json?
+  summary        String?                     @db.Text
+  errorCode      String?                     @map("error_code") @db.VarChar(100)
+  startedAt      DateTime                    @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt    DateTime?                   @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, updatedAt])
+  @@index([reportDate])
+  @@map("operations_daily_reports")
 }
 
 model LegalHold {
