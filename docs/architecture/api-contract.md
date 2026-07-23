@@ -191,6 +191,7 @@ GET    /api/v1/admin/model-providers
 PATCH  /api/v1/admin/model-providers/:providerId/status
 PUT    /api/v1/admin/model-providers/:providerId/credential
 PUT    /api/v1/admin/model-configs/:modelConfigId
+POST   /api/v1/admin/model-configs/:modelConfigId/probe
 GET    /api/v1/admin/model-calls
 
 GET    /api/v1/admin/agent-runs

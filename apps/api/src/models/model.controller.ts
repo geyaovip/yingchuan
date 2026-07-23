@@ -116,6 +116,20 @@ export class ModelController {
     };
   }
 
+  @Post("admin/model-configs/:modelConfigId/probe")
+  async probeModelConfig(
+    @Param("modelConfigId") modelConfigId: string,
+    @Headers("x-csrf-token") csrf: string | undefined,
+    @Req() request: Request,
+  ) {
+    const auth = await this.writeAuth(request, csrf);
+    return {
+      data: await this.perform(() =>
+        this.models.probeModelConfig(modelConfigId, this.actor(auth)),
+      ),
+    };
+  }
+
   @Post("projects/:projectId/analysis-estimates")
   async estimate(
     @Param("projectId") projectId: string,

@@ -30,6 +30,9 @@ describe("OpenAPI contract", () => {
     expect(document.paths).toHaveProperty(
       "/api/v1/projects/{projectId}/identification-confirmations",
     );
+    expect(document.paths).toHaveProperty(
+      "/api/v1/admin/model-configs/{modelConfigId}/probe",
+    );
     expect(document.components?.securitySchemes).toHaveProperty(
       "yingchuan_session",
     );

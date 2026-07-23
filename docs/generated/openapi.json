@@ -547,6 +547,18 @@
         "tags": ["Model"]
       }
     },
+    "/api/v1/admin/model-configs/{modelConfigId}/probe": {
+      "post": {
+        "operationId": "ModelController_probeModelConfig",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
     "/api/v1/projects/{projectId}/analysis-estimates": {
       "post": {
         "operationId": "ModelController_estimate",

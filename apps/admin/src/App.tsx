@@ -35,6 +35,7 @@ interface ModelVersion {
   readonly modelCode: string;
   readonly nativeWebSearch: boolean;
   readonly outputPriceMicrosPerMillion: string | null;
+  readonly probedAt?: string | null;
   readonly timeoutMs: number;
 }
 
@@ -65,6 +66,16 @@ interface ModelCallResponse {
   readonly latencyMs: number;
   readonly outputTokens: number;
   readonly status: string;
+}
+
+interface ModelProbeResult {
+  readonly errorCode: string | null;
+  readonly inputTokens: number;
+  readonly latencyMs: number;
+  readonly modelCode: string;
+  readonly outputTokens: number;
+  readonly probedAt: string | null;
+  readonly status: "succeeded" | "failed";
 }
 
 interface AdminDashboardResponse {
@@ -342,14 +353,18 @@ function ModelManagement() {
       active = false;
     };
   }, []);
-  const execute = async (operation: () => Promise<unknown>) => {
+  const execute = async <T,>(
+    operation: () => Promise<T>,
+  ): Promise<T | undefined> => {
     setBusy(true);
     setError(undefined);
     try {
-      await operation();
+      const result = await operation();
       await load();
+      return result;
     } catch (caught) {
       setError(messageFor(caught));
+      return undefined;
     } finally {
       setBusy(false);
     }
@@ -446,6 +461,17 @@ function ModelManagement() {
                     row.versions[0]?.nativeWebSearch ? "支持" : "不支持",
                 },
                 {
+                  key: "probe",
+                  label: "最近探测",
+                  render: (row: ModelConfig) =>
+                    row.versions[0]?.probedAt
+                      ? new Date(row.versions[0].probedAt).toLocaleString(
+                          "zh-CN",
+                        )
+                      : "未探测",
+                  secondary: true,
+                },
+                {
                   key: "action",
                   label: "操作",
                   render: (row: ModelConfig) => (
@@ -533,6 +559,14 @@ function ModelManagement() {
               <ModelConfigForm
                 busy={busy}
                 config={selected}
+                onProbe={() =>
+                  execute(() =>
+                    api.request<ModelProbeResult>(
+                      `/admin/model-configs/${selected.id}/probe`,
+                      { method: "POST" },
+                    ),
+                  )
+                }
                 onSave={(body) =>
                   execute(() =>
                     api.request(`/admin/model-configs/${selected.id}`, {
@@ -594,10 +628,12 @@ function ModelManagement() {
 function ModelConfigForm({
   busy,
   config,
+  onProbe,
   onSave,
 }: {
   readonly busy: boolean;
   readonly config: ModelConfig;
+  readonly onProbe: () => Promise<ModelProbeResult | undefined>;
   readonly onSave: (body: Record<string, unknown>) => Promise<void>;
 }) {
   const version = config.versions[0]!;
@@ -605,6 +641,19 @@ function ModelConfigForm({
   const [nativeWebSearch, setNativeWebSearch] = useState(
     version.nativeWebSearch,
   );
+  const [probeResult, setProbeResult] = useState<ModelProbeResult>();
+  const body = (status: ModelConfig["status"]) => ({
+    apiMode: version.apiMode,
+    displayName: config.displayName,
+    inputPriceMicrosPerMillion: version.inputPriceMicrosPerMillion ?? "0",
+    maxConcurrency: version.maxConcurrency,
+    modelCode,
+    nativeWebSearch,
+    outputPriceMicrosPerMillion: version.outputPriceMicrosPerMillion ?? "0",
+    status,
+    timeoutMs: version.timeoutMs,
+    ...(nativeWebSearch ? { webSearchConfig: { type: "web_search" } } : {}),
+  });
   return (
     <section className="yc-card yc-section-card yc-form-card" key={config.id}>
       <h2>配置 {config.modelFamily}</h2>
@@ -625,29 +674,54 @@ function ModelConfigForm({
         />
         已经当前 Model ID + API 模式实测支持原生联网
       </label>
-      <Button
-        disabled={busy || !modelCode.trim()}
-        onClick={() =>
-          void onSave({
-            apiMode: version.apiMode,
-            displayName: config.displayName,
-            inputPriceMicrosPerMillion:
-              version.inputPriceMicrosPerMillion ?? "0",
-            maxConcurrency: version.maxConcurrency,
-            modelCode,
-            nativeWebSearch,
-            outputPriceMicrosPerMillion:
-              version.outputPriceMicrosPerMillion ?? "0",
-            status: config.status === "enabled" ? "disabled" : "enabled",
-            timeoutMs: version.timeoutMs,
-            ...(nativeWebSearch
-              ? { webSearchConfig: { type: "web_search" } }
-              : {}),
-          })
-        }
-      >
-        {config.status === "enabled" ? "保存并停用" : "保存并启用"}
-      </Button>
+      <div className="yc-actions">
+        <Button
+          disabled={busy || !modelCode.trim()}
+          intent="ghost"
+          onClick={() => void onSave(body(config.status))}
+        >
+          保存配置
+        </Button>
+        <Button
+          disabled={busy || modelCode !== version.modelCode}
+          intent="ghost"
+          onClick={() =>
+            void onProbe().then((result) => {
+              if (result) setProbeResult(result);
+            })
+          }
+        >
+          探测已保存配置
+        </Button>
+        <Button
+          disabled={busy || !modelCode.trim()}
+          onClick={() =>
+            void onSave(
+              body(config.status === "enabled" ? "disabled" : "enabled"),
+            )
+          }
+        >
+          {config.status === "enabled" ? "保存并停用" : "保存并启用"}
+        </Button>
+      </div>
+      {modelCode !== version.modelCode && (
+        <p>Model ID 已修改，请先保存配置，再进行真实探测。</p>
+      )}
+      {(probeResult || version.probedAt) && (
+        <StatePanel
+          description={
+            probeResult
+              ? probeResult.status === "succeeded"
+                ? `${probeResult.modelCode} · ${probeResult.latencyMs} ms · ${probeResult.inputTokens} + ${probeResult.outputTokens} Token`
+                : `${probeResult.modelCode} · ${probeResult.errorCode ?? "MODEL_PROBE_FAILED"}`
+              : `最近成功：${new Date(version.probedAt!).toLocaleString("zh-CN")}`
+          }
+          title={
+            probeResult?.status === "failed" ? "模型探测失败" : "模型探测通过"
+          }
+          tone={probeResult?.status === "failed" ? "error" : "empty"}
+        />
+      )}
     </section>
   );
 }

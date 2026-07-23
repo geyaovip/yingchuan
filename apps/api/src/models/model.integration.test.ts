@@ -14,12 +14,13 @@ import {
 } from "@yingchuan/model-gateway";
 import request from "supertest";
 import { v7 as uuidv7 } from "uuid";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { AppModule } from "../app.module.js";
 import { EMAIL_SENDER } from "../auth/auth.constants.js";
 import type { EmailSender, SendCodeInput } from "../auth/email-sender.js";
 import { configureApi } from "../configure-api.js";
+import { MODEL_GATEWAY_SERVICE } from "./model.constants.js";
 
 class ModelEmailSender implements EmailSender {
   readonly codes = new Map<string, string>();
@@ -67,6 +68,34 @@ describe("model gateway administration, estimates and quota", () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(EMAIL_SENDER)
       .useValue(emailSender)
+      .overrideProvider(MODEL_GATEWAY_SERVICE)
+      .useValue(
+        new ModelGatewayApplicationService(
+          database,
+          new SecretBox(
+            "model_gateway_test_master_key_longer_than_32_characters",
+          ),
+          {
+            invoke: vi.fn((input) =>
+              input.modelCode.includes("unavailable")
+                ? Promise.reject(
+                    new ModelGatewayError(
+                      "provider_unavailable",
+                      "PROVIDER_MODEL_UNAVAILABLE",
+                      false,
+                    ),
+                  )
+                : Promise.resolve({
+                    citations: [],
+                    inputTokens: 4,
+                    outputTokens: 2,
+                    providerRequestId: "probe-provider-request",
+                    text: "OK",
+                  }),
+            ),
+          },
+        ),
+      )
       .compile();
     app = module.createNestApplication();
     configureApi(app);
@@ -265,6 +294,119 @@ describe("model gateway administration, estimates and quota", () => {
       .get(`/api/v1/workspaces/${workspaceId}/usage`)
       .expect(200);
     expect(BigInt(usage.body.data.balanceMicros)).toBeLessThan(10_000_000n);
+  });
+
+  it("probes a disabled saved model with sanitized logs and audit", async () => {
+    const provider = (
+      await read(admin, adminOrigin)
+        .get("/api/v1/admin/model-providers")
+        .expect(200)
+    ).body.data[0] as {
+      modelConfigs: {
+        id: string;
+        modelFamily: string;
+        status: string;
+      }[];
+    };
+    const glm = provider.modelConfigs.find(
+      (item) => item.modelFamily === "glm",
+    )!;
+    expect(glm.status).toBe("disabled");
+    await write(admin, adminOrigin)
+      .put(`/api/v1/admin/model-configs/${glm.id}`)
+      .send({
+        apiMode: "responses",
+        displayName: "GLM 探测",
+        inputPriceMicrosPerMillion: "1000000",
+        maxConcurrency: 1,
+        modelCode: "fixture-glm-probe",
+        nativeWebSearch: false,
+        outputPriceMicrosPerMillion: "2000000",
+        status: "disabled",
+        timeoutMs: 30000,
+      })
+      .expect(200);
+
+    const probe = await write(admin, adminOrigin)
+      .post(`/api/v1/admin/model-configs/${glm.id}/probe`)
+      .expect(201);
+    expect(probe.body.data).toMatchObject({
+      errorCode: null,
+      inputTokens: 4,
+      modelCode: "fixture-glm-probe",
+      outputTokens: 2,
+      status: "succeeded",
+    });
+    expect(probe.body.data.probedAt).toEqual(expect.any(String));
+
+    const refreshed = (
+      await read(admin, adminOrigin)
+        .get("/api/v1/admin/model-providers")
+        .expect(200)
+    ).body.data[0] as {
+      modelConfigs: {
+        modelFamily: string;
+        status: string;
+        versions: { probedAt: string | null }[];
+      }[];
+    };
+    expect(
+      refreshed.modelConfigs.find((item) => item.modelFamily === "glm"),
+    ).toMatchObject({
+      status: "disabled",
+      versions: [expect.objectContaining({ probedAt: expect.any(String) })],
+    });
+    expect(
+      await database.modelCallLog.findFirst({
+        where: {
+          modelConfigVersion: { modelConfigId: glm.id },
+          requestId: { startsWith: "model_probe_" },
+        },
+      }),
+    ).toMatchObject({ status: "succeeded" });
+    expect(
+      await database.auditLog.findFirst({
+        where: {
+          action: "model_config.probe",
+          actorId: admin.userId,
+          objectId: glm.id,
+        },
+      }),
+    ).toMatchObject({ outcome: "success" });
+
+    await write(admin, adminOrigin)
+      .put(`/api/v1/admin/model-configs/${glm.id}`)
+      .send({
+        apiMode: "responses",
+        displayName: "GLM 不可用探测",
+        inputPriceMicrosPerMillion: "1000000",
+        maxConcurrency: 1,
+        modelCode: "fixture-glm-unavailable",
+        nativeWebSearch: false,
+        outputPriceMicrosPerMillion: "2000000",
+        status: "disabled",
+        timeoutMs: 30000,
+      })
+      .expect(200);
+    const failedProbe = await write(admin, adminOrigin)
+      .post(`/api/v1/admin/model-configs/${glm.id}/probe`)
+      .expect(201);
+    expect(failedProbe.body.data).toMatchObject({
+      errorCode: "PROVIDER_MODEL_UNAVAILABLE",
+      modelCode: "fixture-glm-unavailable",
+      probedAt: null,
+      status: "failed",
+    });
+    expect(
+      await database.auditLog.findFirst({
+        orderBy: { createdAt: "desc" },
+        where: {
+          action: "model_config.probe",
+          actorId: admin.userId,
+          objectId: glm.id,
+        },
+      }),
+    ).toMatchObject({ outcome: "failure" });
   });
 
   it("isolates a model failure and records sanitized call observability", async () => {

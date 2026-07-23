@@ -297,6 +297,94 @@ export class ModelGatewayApplicationService {
     );
   }
 
+  async probeModelConfig(modelConfigId: string, actor: GatewayActor) {
+    await this.requireAdmin(actor);
+    const config = await this.database.modelConfig.findUnique({
+      include: {
+        provider: true,
+        versions: { orderBy: { versionNumber: "desc" }, take: 1 },
+      },
+      where: { id: modelConfigId },
+    });
+    const version = config?.versions[0];
+    if (!config || !version)
+      throw new ModelGatewayServiceError("RESOURCE_NOT_FOUND", 404);
+
+    const started = Date.now();
+    try {
+      const response = await this.invokeVersion(
+        version.id,
+        {
+          maxOutputTokens: 16,
+          prompt: "请只回复 OK。",
+          requestId: `model_probe_${uuidv7()}`,
+        },
+        { allowDisabled: true },
+      );
+      const probedAt = new Date();
+      await this.database.$transaction(async (transaction) => {
+        await transaction.modelConfigVersion.update({
+          data: { probedAt },
+          where: { id: version.id },
+        });
+        await this.audit(
+          transaction,
+          actor,
+          "model_config.probe",
+          "ModelConfig",
+          config.id,
+          {
+            latencyMs: Date.now() - started,
+            modelCode: version.modelCode,
+            status: "succeeded",
+          },
+        );
+      });
+      return {
+        errorCode: null,
+        inputTokens: response.inputTokens,
+        latencyMs: Date.now() - started,
+        modelCode: version.modelCode,
+        outputTokens: response.outputTokens,
+        probedAt: probedAt.toISOString(),
+        providerRequestId: response.providerRequestId,
+        status: "succeeded" as const,
+      };
+    } catch (error) {
+      const errorCode =
+        error instanceof ModelGatewayError ||
+        error instanceof ModelGatewayServiceError
+          ? error.code
+          : "MODEL_PROBE_FAILED";
+      await this.database.$transaction((transaction) =>
+        this.audit(
+          transaction,
+          actor,
+          "model_config.probe",
+          "ModelConfig",
+          config.id,
+          {
+            errorCode,
+            latencyMs: Date.now() - started,
+            modelCode: version.modelCode,
+            status: "failed",
+          },
+          undefined,
+          AuditOutcome.failure,
+        ),
+      );
+      return {
+        errorCode,
+        inputTokens: 0,
+        latencyMs: Date.now() - started,
+        modelCode: version.modelCode,
+        outputTokens: 0,
+        probedAt: null,
+        status: "failed" as const,
+      };
+    }
+  }
+
   async estimate(
     projectId: string,
     actorId: string,
@@ -468,6 +556,7 @@ export class ModelGatewayApplicationService {
       readonly projectId?: string;
       readonly workspaceId?: string;
     },
+    options: { readonly allowDisabled?: boolean } = {},
   ): Promise<ModelGatewayResponse> {
     const version = await this.database.modelConfigVersion.findUnique({
       include: { modelConfig: { include: { provider: true } } },
@@ -475,7 +564,8 @@ export class ModelGatewayApplicationService {
     });
     if (
       !version ||
-      version.modelConfig.status !== ConfigStatus.enabled ||
+      (!options.allowDisabled &&
+        version.modelConfig.status !== ConfigStatus.enabled) ||
       version.modelConfig.provider.status !== ConfigStatus.enabled
     )
       throw new ModelGatewayServiceError("MODEL_UNAVAILABLE", 409);
@@ -763,6 +853,7 @@ export class ModelGatewayApplicationService {
     objectId: string,
     afterSummary: Prisma.InputJsonValue,
     workspaceId?: string,
+    outcome: AuditOutcome = AuditOutcome.success,
   ): Promise<void> {
     const context = getRequestContext() ?? {
       requestId: `internal_${uuidv7()}`,
@@ -778,7 +869,7 @@ export class ModelGatewayApplicationService {
         id: uuidv7(),
         objectId,
         objectType,
-        outcome: AuditOutcome.success,
+        outcome,
         requestId: context.requestId,
         riskLevel: action.includes("credential") ? "high" : "medium",
         traceId: context.traceId,

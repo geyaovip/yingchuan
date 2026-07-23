@@ -612,6 +612,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/admin/model-configs/{modelConfigId}/probe": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["ModelController_probeModelConfig"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/projects/{projectId}/analysis-estimates": {
     parameters: {
       query?: never;
@@ -1880,6 +1896,23 @@ export interface operations {
     requestBody?: never;
     responses: {
       200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  ModelController_probeModelConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      201: {
         headers: {
           [name: string]: unknown;
         };
