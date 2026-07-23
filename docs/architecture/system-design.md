@@ -139,8 +139,8 @@ Cloudflare Pages
 └── Admin 静态站点
 
 共用云服务器
-├── 宿主共享 Caddy HTTPS reverse proxy → 映川 API
 └── 映川独立 Compose project（`yingchuan`）
+    ├── Caddy（独立容器，80/443 → 内网 API）
     ├── API
     ├── Worker
     ├── OpenClaw v2026.7.1（仅 Agent Gateway 可访问）
@@ -153,7 +153,7 @@ Cloudflare Pages
 - 前端通过 `VITE_API_BASE_URL` 访问 `https://api.chatway.chat/api/v1`。生产域名固定为 `https://app.chatway.chat`、`https://admin.chatway.chat`、`https://api.chatway.chat`；API CORS 仅允许前两个精确 Origin，并允许 credentialed requests。
 - `*.pages.dev` 和 PR preview 不得连接生产 API。staging 使用 `staging-app.chatway.chat`、`staging-admin.chatway.chat`、`staging-api.chatway.chat` 与独立环境，不为动态 preview Origin 开放带 Cookie 的通配 CORS。
 - `api.chatway.chat` 初期只使用 Cloudflare DNS 解析到云服务器（DNS only），TLS 由 Caddy/Let's Encrypt 在服务器终止；不使用 Cloudflare Worker/Pages Function 代理 API。
-- API 只开放反向代理的 HTTPS 端口；PostgreSQL、Redis、OpenClaw 控制面不暴露公网。Cloudflare 不承载 API、队列、数据库、文件或 Agent。
+- 当前宿主没有共享 Caddy，因此映川以固定摘要的独立 Caddy 容器占用经盘点为空闲的 80/443；API 的 `18080` 仍只绑定回环地址用于发布验证。PostgreSQL、Redis、OpenClaw 控制面不暴露公网，Cloudflare 不承载 API、队列、数据库、文件或 Agent。
 - 映川与其他项目共用宿主机，但不共用应用容器、数据库 schema/账户、Redis 无隔离 keyspace、文件目录或备份目录。Compose 统一使用 `COMPOSE_PROJECT_NAME=yingchuan`，容器/卷/网络以 `yingchuan_` 前缀命名，避免端口和资源冲突。
 - 开发前先盘点宿主 CPU/内存/磁盘/已占用端口，为 API、Worker、PostgreSQL、Redis、OpenClaw 和可观测组件设置明确 resource limit/reservation。资源不足时先保留核心 API/DB/Worker，将 Grafana/Loki/Prometheus 放入可选 Compose profile，不抢占其他项目资源。
 - PostgreSQL 是事实源；Redis 丢失不得造成业务事实丢失。数据库每日全量并归档 WAL 到服务器独立备份目录，备份加密并定期恢复演练。

@@ -81,6 +81,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     networks: [backend]
     mem_limit: ${API_MEMORY_LIMIT:-768m}
     ports:
@@ -101,6 +113,25 @@ services:
     tmpfs: [/tmp]
     volumes:
       - ${YINGCHUAN_DATA_ROOT:-/srv/yingchuan}/private-files:/data/private
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2.10.2-alpine@sha256:d8c17a862962def15cde69863a3a463f25a2664942eafd7bdbf050e9c3116b83}
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: ${CADDY_MEMORY_LIMIT:-128m}
+    networks: [backend, caddy_egress]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    read_only: true
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/config]
+    volumes:
+      - ./caddy/Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
 
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:2026.7.1}
@@ -163,9 +194,11 @@ services:
 networks:
   backend:
     internal: true
+  caddy_egress: {}
   agent_egress: {}
 
 volumes:
+  caddy_data:
   openclaw_home:
 
 secrets:

@@ -15,17 +15,17 @@
 
 ## 云服务器
 
-服务器预留 `/opt/yingchuan`（部署文件）、`/srv/yingchuan`（数据）和 `/etc/yingchuan/secrets`（密钥）。`production.env` 权限必须为 `0600`，只存放 `IMAGE_PREFIX`、`ADMIN_ALLOWED_EMAILS=geyaovip@163.com`、资源上限和可调整的 `API_BIND_PORT` 等非密钥配置。数据库与 Redis 连接串分别放入权限为 `0600` 的 `database_url`、`redis_url`，PostgreSQL 密码放入 `postgres_password`；Redis ACL 从 `redis-users.acl.example` 生成后保存为 `redis_acl`。认证 HMAC pepper、Resend API Key、OpenClaw Gateway Token、模型密钥主密钥和通知密钥主密钥分别放入 `auth_pepper`、`resend_api_key`、`openclaw_gateway_token`、`model_credential_master_key`、`notification_credential_master_key`。应用只通过 Compose secrets 的 `*_FILE` 入口读取密钥。
+服务器预留 `/opt/yingchuan`（部署文件）、`/srv/yingchuan`（数据）和 `/etc/yingchuan/secrets`（密钥）。`production.env` 只存放 `IMAGE_PREFIX`、`ADMIN_ALLOWED_EMAILS=geyaovip@163.com`、资源上限和可调整的 `API_BIND_PORT` 等非密钥配置。数据库与 Redis 连接串分别放入 `database_url`、`redis_url`，PostgreSQL 密码放入 `postgres_password`；Redis ACL 从 `redis-users.acl.example` 生成后保存为 `redis_acl`。认证 HMAC pepper、Resend API Key、OpenClaw Gateway Token、模型密钥主密钥和通知密钥主密钥分别放入 `auth_pepper`、`resend_api_key`、`openclaw_gateway_token`、`model_credential_master_key`、`notification_credential_master_key`。当前共享服务器使用 `root:docker`、目录 `0750`、文件 `0640`，只有 root 和已等价拥有 Docker 管理权限的部署账户可读；应用只通过 Compose secrets 的 `*_FILE` 入口读取密钥。
 
 所有命令必须同时带 `COMPOSE_PROJECT_NAME=yingchuan` 和 `--project-name yingchuan`。发布顺序是启动专属 PostgreSQL/Redis、运行一次性 migration、再只更新 API/Worker；禁止全局 Compose down、`docker system prune` 或影响其他项目的端口清理。
 
 ### 首次部署前
 
 1. 以只读方式运行 `deploy/scripts/preflight.sh`，保存 CPU、内存、磁盘、端口、现有 Compose project 与目录盘点结果；先根据结果调整 `production.env` 中每个服务的 CPU/内存上限。
-2. 创建最小权限部署账户，只允许写入 `/opt/yingchuan` 并执行映川专用 Compose 命令；不得授予任意免密 root shell。服务器防火墙只允许 SSH 和共享 Caddy 使用的 80/443，`18080` 仅绑定 `127.0.0.1`，数据库与 Redis不映射宿主端口。
-3. 创建 `/srv/yingchuan/postgres`、`redis`、`private-files` 和 `backups/postgres`，以及 `/etc/yingchuan/secrets`。密钥目录与文件分别使用 `0700`、`0600`；数据目录所有者按对应容器 UID 设置，不能开放全局写权限。
+2. 创建映川专用部署密钥；部署账户只写入 `/opt/yingchuan` 并执行显式带 `--project-name yingchuan` 的 Compose 命令。服务器防火墙只允许 SSH 和映川 Caddy 使用的 80/443，`18080` 仅绑定 `127.0.0.1`，数据库与 Redis 不映射宿主端口。
+3. 创建 `/srv/yingchuan/postgres`、`redis`、`private-files` 和 `backups/postgres`，以及 `/etc/yingchuan/secrets`。密钥目录与文件按上一节权限设置；数据目录所有者按对应容器 UID 设置，不能开放全局写权限。
 4. 在 `production.env` 设置 `OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.7.1@sha256:<经 staging 验证的摘要>`；发布工作流会拒绝浮动 tag、非官方镜像或缺少摘要的配置。
-5. 将 `deploy/caddy/Caddyfile.example` 合并到宿主现有 Caddy 配置并验证后 reload。`api.chatway.chat` 使用 Cloudflare DNS-only A/AAAA 记录，TLS 在宿主 Caddy 终止。
+5. 当前宿主没有共享 Caddy，映川 Compose 因此使用独立、固定摘要的 Caddy 容器占用空闲的 80/443，并通过内部 `backend` 网络代理 `api:3000`。`api.chatway.chat` 使用 Cloudflare DNS-only A 记录，TLS 由该容器的 Let's Encrypt 自动签发和续期；不得改用已有 Cloudflare Tunnel。
 
 ### 发布与回滚
 
@@ -40,9 +40,9 @@
 ## 外部授权清单
 
 - GitHub：目标仓库、GHCR package 写权限、受保护 `production` Environment，以及 `DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER`、`DEPLOY_SSH_PRIVATE_KEY`、`DEPLOY_SSH_HOST_KEY`；
-- Cloudflare：创建两个 Pages 项目、自定义域名，以及 `api.chatway.chat` 的 DNS-only 记录；
-- 共享服务器：只读盘点和部署 SSH 入口、宿主 Caddy 配置位置、允许使用的回环端口、数据盘路径与资源额度。
-- Resend：`mail.chatway.chat` 已完成 DNS 验证和投递 smoke，域名限定生产 API Key 已保存到本机钥匙串；服务器就绪后写入 `/etc/yingchuan/secrets/resend_api_key`；
+- Cloudflare：两个 Pages 项目、自定义域名和 `api.chatway.chat` 的 DNS-only A 记录均已完成；
+- 共享服务器：已完成只读盘点、映川专用部署密钥、独立目录和受限资源配置；
+- Resend：`mail.chatway.chat` 已完成 DNS 验证和投递 smoke，域名限定生产 API Key 已写入 `/etc/yingchuan/secrets/resend_api_key`；
 - 火山方舟：提供账户 API Key，并在管理端逐一选择、探测和启用豆包、Kimi、GLM、DeepSeek 的当前 Model ID；
 - OpenClaw：允许拉取官方 GHCR 镜像，并确认 staging 验证后的 `2026.7.1` digest；
 - Telegram：后台上线后由白名单管理员填写 Bot Token/Chat ID 并发送测试消息。
