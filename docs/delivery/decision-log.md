@@ -52,6 +52,7 @@
 | D-046 | accepted   | 2026-07-22 | Resend 发件域名使用 `mail.chatway.chat`                                     | 在 Resend 后台创建并按实时提示向 Cloudflare DNS 添加验证记录；默认发件人为 `映川 <login@mail.chatway.chat>`                                                 |
 | D-047 | accepted   | 2026-07-22 | P0 管理端只允许 `geyaovip@163.com` 登录                                     | 邮箱规范化后精确匹配 `ADMIN_ALLOWED_EMAILS`，初始化为 `super_admin`；其他邮箱不获得管理 Session/路由权限。该限制仅针对管理端，用户端邮箱验证码登录保持      |
 | D-048 | accepted   | 2026-07-23 | 根域 `chatway.chat` 部署独立响应式产品官网                                  | 使用 Vite + React + TypeScript 静态站点和 Cloudflare Pages；官网只展示产品信息并跳转 `app.chatway.chat`，不调用生产 API、不建立认证 Session                 |
+| D-049 | accepted   | 2026-07-23 | 用户端与管理端 Session 默认有效期为 365 天                                  | 提供接近长期登录的体验；保留主动退出、账号停用和服务端撤销能力，不创建无法撤销的永久 Session                                                                |
 
 ## 新增决策模板
 

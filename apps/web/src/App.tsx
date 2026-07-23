@@ -404,6 +404,12 @@ function AuthenticatedApp({
     <AppShell
       activeHref={location.pathname}
       navigation={mainNavigation}
+      onLogout={() => {
+        void api.request("/auth/logout", { method: "POST" }).finally(() => {
+          api.setSession(undefined);
+          globalThis.location.href = "/login";
+        });
+      }}
       onWorkspaceChange={selectWorkspace}
       projectNavigation={projectItems}
       projectTitle={activeProject?.name}

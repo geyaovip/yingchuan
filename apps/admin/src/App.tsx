@@ -287,6 +287,12 @@ function AdminShell({ session }: { readonly session: SessionView }) {
       activeHref={location.pathname}
       brand="映川管理端"
       navigation={navigation}
+      onLogout={() => {
+        void api.request("/auth/logout", { method: "POST" }).finally(() => {
+          api.setSession(undefined);
+          globalThis.location.href = "/login";
+        });
+      }}
       userEmail={session.email}
     >
       <Routes>

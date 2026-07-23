@@ -32,7 +32,7 @@ import type {
 } from "./auth.types.js";
 
 const challengeTtlMs = 10 * 60 * 1000;
-const sessionTtlMs = 7 * 24 * 60 * 60 * 1000;
+const sessionTtlMs = 365 * 24 * 60 * 60 * 1000;
 const stepUpTtlMs = 10 * 60 * 1000;
 
 @Injectable()

@@ -59,7 +59,7 @@
 - 验证码使用密码学安全随机数生成，只在数据库保存带服务端 pepper 的哈希；10 分钟后失效，成功验证后立即作废。
 - 同一验证码最多尝试 5 次；按邮箱、IP、设备和时间窗限流，异常请求产生安全指标但不泄露账号是否存在。
 - 发送请求使用幂等键，模板不得包含敏感业务数据；日志只记录 Resend message ID、结果和脱敏收件地址。
-- Session 由 `api.chatway.chat` 使用 host-only、HttpOnly、Secure、SameSite=Lax Cookie；登录、退出、换绑邮箱和管理员敏感操作写入安全审计。
+- Session 由 `api.chatway.chat` 使用 host-only、HttpOnly、Secure、SameSite=Lax Cookie，默认有效期 365 天；用户主动退出、账号停用或服务端撤销后立即失效。登录、退出、换绑邮箱和管理员敏感操作写入安全审计。
 - 生产 Web/Admin/API 固定为 `app.chatway.chat`、`admin.chatway.chat`、`api.chatway.chat`。`*.pages.dev` preview 不允许连接生产 API。
 
 ## 5. 外部抓取与 SSRF

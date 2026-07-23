@@ -109,6 +109,9 @@ describe("email code authentication", () => {
     expect(setCookie[0]).toContain("HttpOnly");
     expect(setCookie[0]).toContain("Secure");
     expect(setCookie[0]).toContain("SameSite=Lax");
+    const maxAge = Number(/Max-Age=(\d+)/u.exec(setCookie[0]!)?.[1]);
+    expect(maxAge).toBeGreaterThanOrEqual(31_535_999);
+    expect(maxAge).toBeLessThanOrEqual(31_536_000);
     expect(setCookie[0]).not.toContain("Domain=");
     const cookie = setCookie[0]!.split(";")[0]!;
     const csrf = verification.body.data.csrfToken as string;

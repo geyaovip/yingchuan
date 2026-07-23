@@ -24,6 +24,7 @@ export interface AppShellProps extends PropsWithChildren {
   readonly activeHref: string;
   readonly brand?: string;
   readonly navigation: readonly NavigationItem[];
+  readonly onLogout?: () => void;
   readonly projectNavigation?: readonly NavigationItem[];
   readonly projectTitle?: string;
   readonly userEmail?: string;
@@ -37,6 +38,7 @@ export function AppShell({
   brand = "映川",
   children,
   navigation,
+  onLogout,
   onWorkspaceChange,
   projectNavigation = [],
   projectTitle,
@@ -161,6 +163,15 @@ export function AppShell({
             <strong>{userEmail ? "已登录" : "访客"}</strong>
             <small>{userEmail ?? "请登录以继续"}</small>
           </span>
+          {onLogout && (
+            <button
+              className="yc-sidebar__logout"
+              onClick={onLogout}
+              type="button"
+            >
+              退出登录
+            </button>
+          )}
         </div>
       </aside>
       <div className="yc-app-shell__body">

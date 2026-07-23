@@ -192,6 +192,22 @@ a {
   min-width: 0;
   gap: 2px;
 }
+.yc-sidebar__logout {
+  margin-left: auto;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--yc-radius-sm);
+  background: transparent;
+  color: var(--yc-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.yc-sidebar__logout:hover,
+.yc-sidebar__logout:focus-visible {
+  background: var(--yc-surface-subtle);
+  color: var(--yc-text);
+}
 .yc-sidebar__identity strong {
   font-size: 12px;
 }
