@@ -725,6 +725,16 @@ a {
   font-size: 12px;
   line-height: 1.45;
 }
+.yc-development-code {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(37, 99, 168, 0.18);
+  border-radius: var(--yc-radius-md);
+  background: #f2f7fc;
+  color: var(--yc-info);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .yc-skeleton {
   display: grid;
   gap: 12px;

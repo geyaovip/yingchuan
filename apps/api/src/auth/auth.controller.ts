@@ -31,14 +31,14 @@ export class AuthController {
   async requestEmailCode(
     @Body() body: unknown,
     @Req() request: Request,
-  ): Promise<{ data: { accepted: true } }> {
+  ): Promise<{ data: { accepted: true; developmentCode?: string } }> {
     const input = this.parse(() => requestCodeSchema.parse(body));
-    await this.authService.requestLoginCode(
+    const result = await this.authService.requestLoginCode(
       input.email,
       input.audience,
       this.identity(request, true),
     );
-    return { data: { accepted: true } };
+    return { data: { accepted: true, ...result } };
   }
 
   @Post("email-code-verifications")
@@ -94,12 +94,12 @@ export class AuthController {
   async requestStepUpCode(
     @Headers("x-csrf-token") csrfToken: string | undefined,
     @Req() request: Request,
-  ): Promise<{ data: { accepted: true } }> {
+  ): Promise<{ data: { accepted: true; developmentCode?: string } }> {
     const auth = await this.authService.getSession(this.sessionToken(request));
     const identity = this.identity(request, true);
     this.authService.assertCsrf(auth, csrfToken, identity.origin);
-    await this.authService.requestStepUpCode(auth, identity);
-    return { data: { accepted: true } };
+    const result = await this.authService.requestStepUpCode(auth, identity);
+    return { data: { accepted: true, ...result } };
   }
 
   @Post("step-up-code-verifications")

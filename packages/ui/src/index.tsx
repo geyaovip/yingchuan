@@ -476,18 +476,26 @@ export function LoginPanel({
   readonly audience?: "user" | "admin";
   readonly busy?: boolean;
   readonly error?: string;
-  readonly onRequestCode: (email: string) => Promise<boolean>;
+  readonly onRequestCode: (
+    email: string,
+  ) => Promise<{ readonly developmentCode?: string } | false>;
   readonly onVerifyCode: (email: string, code: string) => Promise<void>;
 }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [codeRequested, setCodeRequested] = useState(false);
+  const [developmentCode, setDevelopmentCode] = useState<string>();
   const emailId = useId();
   const codeId = useId();
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!codeRequested) {
-      if (await onRequestCode(email)) setCodeRequested(true);
+      const result = await onRequestCode(email);
+      if (result) {
+        setCodeRequested(true);
+        setDevelopmentCode(result.developmentCode);
+        if (result.developmentCode) setCode(result.developmentCode);
+      }
       return;
     }
     await onVerifyCode(email, code);
@@ -543,6 +551,11 @@ export function LoginPanel({
               {error}
             </p>
           )}
+          {developmentCode && (
+            <p className="yc-development-code" role="status">
+              本地开发验证码已自动填入：<strong>{developmentCode}</strong>
+            </p>
+          )}
           <Button disabled={busy} type="submit">
             {busy ? "正在处理…" : codeRequested ? "验证并登录" : "发送验证码"}
           </Button>
@@ -553,6 +566,7 @@ export function LoginPanel({
               onClick={() => {
                 setCodeRequested(false);
                 setCode("");
+                setDevelopmentCode(undefined);
               }}
               type="button"
             >
@@ -560,9 +574,7 @@ export function LoginPanel({
             </Button>
           )}
         </form>
-        <p className="yc-meta">
-          如果地址可用，我们会发送验证码；提示不会暴露账号状态。
-        </p>
+        <p className="yc-meta">验证码 10 分钟内有效，请勿转发给任何人。</p>
       </section>
     </main>
   );

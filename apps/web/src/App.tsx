@@ -280,12 +280,13 @@ function Login({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const perform = async (operation: () => Promise<void>): Promise<boolean> => {
+  const perform = async <T,>(
+    operation: () => Promise<T>,
+  ): Promise<T | false> => {
     setBusy(true);
     setError(undefined);
     try {
-      await operation();
-      return true;
+      return await operation();
     } catch (caught) {
       setError(messageFor(caught));
       return false;
@@ -298,12 +299,15 @@ function Login({
       busy={busy}
       error={error}
       onRequestCode={(email) =>
-        perform(async () => {
-          await api.request("/auth/email-code-requests", {
-            body: JSON.stringify({ audience: "user", email }),
-            method: "POST",
-          });
-        })
+        perform(() =>
+          api.request<{ accepted: true; developmentCode?: string }>(
+            "/auth/email-code-requests",
+            {
+              body: JSON.stringify({ audience: "user", email }),
+              method: "POST",
+            },
+          ),
+        )
       }
       onVerifyCode={async (email, code) => {
         await perform(async () => {
@@ -1156,9 +1160,6 @@ function WorkspacePage({
                         )}
                       </small>
                     </span>
-                    <span className="yc-meta">
-                      工作区标识：{workspace.slug}
-                    </span>
                   </li>
                 ))}
               </ul>
@@ -1346,24 +1347,47 @@ function NewProjectPage({ workspaceId }: { readonly workspaceId?: string }) {
           />
         </FormField>
         <div className="yc-form-row">
-          <FormField label="国家/地区代码">
-            <input
-              maxLength={2}
-              onChange={(event) => setCountry(event.target.value.toUpperCase())}
+          <FormField label="主要市场">
+            <select
+              onChange={(event) => setCountry(event.target.value)}
               value={country}
-            />
+            >
+              <option value="CN">中国大陆</option>
+              <option value="HK">中国香港</option>
+              <option value="TW">中国台湾</option>
+              <option value="SG">新加坡</option>
+              <option value="JP">日本</option>
+              <option value="KR">韩国</option>
+              <option value="US">美国</option>
+              <option value="GB">英国</option>
+            </select>
           </FormField>
           <FormField label="主要语言">
-            <input
+            <select
               onChange={(event) => setLanguage(event.target.value)}
               value={language}
-            />
+            >
+              <option value="zh-CN">简体中文</option>
+              <option value="zh-TW">繁体中文</option>
+              <option value="en-US">English</option>
+              <option value="ja-JP">日本語</option>
+              <option value="ko-KR">한국어</option>
+            </select>
           </FormField>
           <FormField label="时区">
-            <input
+            <select
               onChange={(event) => setTimezone(event.target.value)}
               value={timezone}
-            />
+            >
+              <option value="Asia/Shanghai">北京时间</option>
+              <option value="Asia/Hong_Kong">香港时间</option>
+              <option value="Asia/Singapore">新加坡时间</option>
+              <option value="Asia/Tokyo">日本时间</option>
+              <option value="Asia/Seoul">韩国时间</option>
+              <option value="America/Los_Angeles">美国太平洋时间</option>
+              <option value="America/New_York">美国东部时间</option>
+              <option value="Europe/London">英国时间</option>
+            </select>
           </FormField>
         </div>
         {error && (

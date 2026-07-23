@@ -38,6 +38,7 @@ const stepUpTtlMs = 10 * 60 * 1000;
 @Injectable()
 export class AuthService {
   private readonly allowedAdminEmails: ReadonlySet<string>;
+  private readonly localCodeDelivery: boolean;
   private readonly pepper: string;
 
   constructor(
@@ -48,6 +49,10 @@ export class AuthService {
     this.pepper = getRuntimeValue("AUTH_PEPPER", {
       fallback: "yingchuan_local_auth_pepper_change_before_production",
     });
+    this.localCodeDelivery =
+      process.env.NODE_ENV === "development" &&
+      getRuntimeValue("AUTH_LOCAL_CODE_DELIVERY", { fallback: "false" }) ===
+        "true";
     this.allowedAdminEmails = new Set(
       getRuntimeValue("ADMIN_ALLOWED_EMAILS", {
         fallback: "geyaovip@163.com",
@@ -65,24 +70,25 @@ export class AuthService {
     emailInput: string,
     audienceInput: AuthAudienceInput,
     identity: RequestIdentity,
-  ): Promise<void> {
+  ): Promise<{ developmentCode?: string }> {
     const email = this.normalizeEmail(emailInput);
     const audience = this.toAudience(audienceInput);
     this.assertOrigin(audienceInput, identity.origin);
-    await this.assertRateLimit("login", email, identity);
+    await this.assertRateLimit("login", email, identity, audienceInput);
 
     if (
       audience === AuthAudience.admin &&
       !this.allowedAdminEmails.has(email)
     ) {
-      return;
+      return {};
     }
-    await this.createAndSendChallenge(
+    const developmentCode = await this.createAndSendChallenge(
       email,
       audience,
       ChallengePurpose.login,
       identity,
     );
+    return developmentCode ? { developmentCode } : {};
   }
 
   async verifyLoginCode(
@@ -262,16 +268,22 @@ export class AuthService {
   async requestStepUpCode(
     auth: AuthenticatedSession,
     identity: RequestIdentity,
-  ): Promise<void> {
+  ): Promise<{ developmentCode?: string }> {
     this.assertAdminSession(auth, identity.origin);
-    await this.assertRateLimit("step-up", auth.user.emailNormalized, identity);
-    await this.createAndSendChallenge(
+    await this.assertRateLimit(
+      "step-up",
+      auth.user.emailNormalized,
+      identity,
+      "admin",
+    );
+    const developmentCode = await this.createAndSendChallenge(
       auth.user.emailNormalized,
       AuthAudience.admin,
       ChallengePurpose.step_up,
       identity,
       auth.session.id,
     );
+    return developmentCode ? { developmentCode } : {};
   }
 
   async verifyStepUpCode(
@@ -320,22 +332,26 @@ export class AuthService {
     purpose: ChallengePurpose,
     identity: RequestIdentity,
     sessionId?: string,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     const id = uuidv7();
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     let resendMessageId: string;
-    try {
-      resendMessageId = await this.emailSender.sendCode({
-        code,
-        email,
-        idempotencyKey: `email-code/${id}`,
-        purpose,
-      });
-    } catch {
-      throw this.authError(
-        "EXTERNAL_DEPENDENCY_UNAVAILABLE",
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+    if (this.localCodeDelivery) {
+      resendMessageId = `local-development/${id}`;
+    } else {
+      try {
+        resendMessageId = await this.emailSender.sendCode({
+          code,
+          email,
+          idempotencyKey: `email-code/${id}`,
+          purpose,
+        });
+      } catch {
+        throw this.authError(
+          "EXTERNAL_DEPENDENCY_UNAVAILABLE",
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
     }
     await this.database.emailCodeChallenge.create({
       data: {
@@ -351,6 +367,7 @@ export class AuthService {
         sessionId,
       },
     });
+    return this.localCodeDelivery ? code : undefined;
   }
 
   private async verifyChallenge(
@@ -399,10 +416,11 @@ export class AuthService {
     scope: "login" | "step-up",
     email: string,
     identity: RequestIdentity,
+    audience: AuthAudienceInput,
   ): Promise<void> {
     const allowed = await this.rateLimiter.consume([
       {
-        key: `${scope}:email-minute:${this.hash(email)}`,
+        key: `${scope}:${audience}:email-minute:${this.hash(email)}`,
         limit: 1,
         ttlMs: 60_000,
       },

@@ -247,12 +247,13 @@ function AdminLogin({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const perform = async (operation: () => Promise<void>): Promise<boolean> => {
+  const perform = async <T,>(
+    operation: () => Promise<T>,
+  ): Promise<T | false> => {
     setBusy(true);
     setError(undefined);
     try {
-      await operation();
-      return true;
+      return await operation();
     } catch (caught) {
       setError(messageFor(caught));
       return false;
@@ -266,12 +267,15 @@ function AdminLogin({
       busy={busy}
       error={error}
       onRequestCode={(email) =>
-        perform(async () => {
-          await api.request("/auth/email-code-requests", {
-            body: JSON.stringify({ audience: "admin", email }),
-            method: "POST",
-          });
-        })
+        perform(() =>
+          api.request<{ accepted: true; developmentCode?: string }>(
+            "/auth/email-code-requests",
+            {
+              body: JSON.stringify({ audience: "admin", email }),
+              method: "POST",
+            },
+          ),
+        )
       }
       onVerifyCode={async (email, code) => {
         await perform(async () => {
@@ -522,11 +526,16 @@ function ModelManagement() {
                   disabled={busy}
                   intent="ghost"
                   onClick={() =>
-                    void execute(() =>
-                      api.request("/auth/step-up-code-requests", {
+                    void execute(async () => {
+                      const result = await api.request<{
+                        accepted: true;
+                        developmentCode?: string;
+                      }>("/auth/step-up-code-requests", {
                         method: "POST",
-                      }),
-                    )
+                      });
+                      if (result.developmentCode)
+                        setStepUpCode(result.developmentCode);
+                    })
                   }
                 >
                   发送二次验证码
@@ -1507,9 +1516,13 @@ function TelegramSettings() {
           <Button
             intent="ghost"
             onClick={() =>
-              void run(() =>
-                api.request("/auth/step-up-code-requests", { method: "POST" }),
-              )
+              void run(async () => {
+                const result = await api.request<{
+                  accepted: true;
+                  developmentCode?: string;
+                }>("/auth/step-up-code-requests", { method: "POST" });
+                if (result.developmentCode) setCode(result.developmentCode);
+              })
             }
           >
             发送二次验证码

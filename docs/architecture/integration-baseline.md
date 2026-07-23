@@ -8,6 +8,7 @@
 - 发件域名固定为 `mail.chatway.chat`，发件前在 Resend 后台创建域名，再在 Cloudflare DNS 添加 Resend 给出的验证记录。不猜测或手写 DNS 值，以 Resend 当时展示为准。
 - 发送请求使用 `Idempotency-Key`，业务侧仍需维护验证码 challenge 幂等和限流。
 - 发件人：`映川 <login@mail.chatway.chat>`。P0 验证码邮件不要求用户直接回复；客服回复地址在实际邮箱准备后另配置。
+- 本地开发可设置 `AUTH_LOCAL_CODE_DELIVERY=true`，仅在 `NODE_ENV=development` 时跳过 Resend，并在验证码请求响应中返回一次本地验证码用于界面联调；生产环境始终忽略该开关，仍只允许 Resend 投递。
 
 官方资料：
 
