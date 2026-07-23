@@ -7,13 +7,62 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  Ban,
+  Bell,
+  Bot,
+  BrainCircuit,
+  Building2,
+  ChartNoAxesCombined,
+  Circle,
+  CircleAlert,
+  CircleCheck,
+  FolderKanban,
+  Info,
+  LayoutDashboard,
+  ListTodo,
+  Menu,
+  RefreshCcw,
+  ScrollText,
+  Settings,
+  UsersRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+
+export type NavigationIconName =
+  | "agent"
+  | "audit"
+  | "dashboard"
+  | "models"
+  | "notifications"
+  | "projects"
+  | "settings"
+  | "tasks"
+  | "team"
+  | "usage"
+  | "workspaces";
 
 export interface NavigationItem {
   readonly badge?: string;
   readonly href: string;
+  readonly icon?: NavigationIconName;
   readonly label: string;
-  readonly marker?: string;
 }
+
+const navigationIcons: Record<NavigationIconName, LucideIcon> = {
+  agent: Bot,
+  audit: ScrollText,
+  dashboard: LayoutDashboard,
+  models: BrainCircuit,
+  notifications: Bell,
+  projects: FolderKanban,
+  settings: Settings,
+  tasks: ListTodo,
+  team: UsersRound,
+  usage: ChartNoAxesCombined,
+  workspaces: Building2,
+};
 
 export interface WorkspaceOption {
   readonly id: string;
@@ -107,7 +156,11 @@ export function AppShell({
           ref={menuButtonRef}
           type="button"
         >
-          <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span>
+          {menuOpen ? (
+            <X aria-hidden="true" size={21} strokeWidth={1.8} />
+          ) : (
+            <Menu aria-hidden="true" size={21} strokeWidth={1.8} />
+          )}
         </button>
         <a className="yc-brand yc-brand--mobile" href="/dashboard">
           <span className="yc-brand__mark">映</span>
@@ -211,20 +264,39 @@ function Navigation({
   return (
     <nav aria-label="主导航" className="yc-main-nav">
       {items.map((item) => (
-        <a
-          aria-current={activeHref === item.href ? "page" : undefined}
-          href={item.href}
+        <NavigationLink
+          active={activeHref === item.href}
+          item={item}
           key={item.href}
-          onClick={onNavigate}
-        >
-          <span className="yc-main-nav__marker" aria-hidden="true">
-            {item.marker ?? "·"}
-          </span>
-          <span>{item.label}</span>
-          {item.badge && <small>{item.badge}</small>}
-        </a>
+          onNavigate={onNavigate}
+        />
       ))}
     </nav>
+  );
+}
+
+function NavigationLink({
+  active,
+  item,
+  onNavigate,
+}: {
+  readonly active: boolean;
+  readonly item: NavigationItem;
+  readonly onNavigate: () => void;
+}) {
+  const Icon = item.icon ? navigationIcons[item.icon] : Circle;
+  return (
+    <a
+      aria-current={active ? "page" : undefined}
+      href={item.href}
+      onClick={onNavigate}
+    >
+      <span className="yc-main-nav__marker" aria-hidden="true">
+        <Icon size={17} strokeWidth={1.8} />
+      </span>
+      <span>{item.label}</span>
+      {item.badge && <small>{item.badge}</small>}
+    </a>
   );
 }
 
@@ -326,7 +398,7 @@ export function LoginPanel({
           映川
         </a>
         <p className="yc-eyebrow">
-          {audience === "admin" ? "ADMIN" : "AI 品牌可见度"}
+          {audience === "admin" ? "管理控制台" : "品牌内容分析"}
         </p>
         <h1 id="login-heading">{codeRequested ? "输入验证码" : "登录映川"}</h1>
         <p className="yc-auth-card__intro">
@@ -400,16 +472,16 @@ export function StatusBadge({
   children,
   tone = "neutral",
 }: PropsWithChildren<{ readonly tone?: StatusTone }>) {
-  const symbol = {
-    danger: "!",
-    info: "i",
-    neutral: "·",
-    success: "✓",
-    warning: "!",
+  const Icon = {
+    danger: CircleAlert,
+    info: Info,
+    neutral: Circle,
+    success: CircleCheck,
+    warning: CircleAlert,
   }[tone];
   return (
     <span className={`yc-status yc-status--${tone}`}>
-      <span aria-hidden="true">{symbol}</span>
+      <Icon aria-hidden="true" size={13} strokeWidth={2} />
       {children}
     </span>
   );
@@ -452,10 +524,17 @@ export function StatePanel({
   readonly tone?: "empty" | "error" | "stale" | "forbidden";
   readonly title: string;
 }) {
-  const symbols = { empty: "○", error: "!", forbidden: "×", stale: "↻" };
+  const Icon = {
+    empty: Circle,
+    error: CircleAlert,
+    forbidden: Ban,
+    stale: RefreshCcw,
+  }[tone];
   return (
     <section className={`yc-state yc-state--${tone}`}>
-      <span aria-hidden="true">{symbols[tone]}</span>
+      <span aria-hidden="true">
+        <Icon size={17} strokeWidth={1.9} />
+      </span>
       <div>
         <h2>{title}</h2>
         <p>{description}</p>
@@ -474,9 +553,11 @@ export interface ResponsiveColumn<T> {
 
 export function ResponsiveData<T extends { readonly id: string }>({
   columns,
+  emptyMessage = "暂无数据",
   rows,
 }: {
   readonly columns: readonly ResponsiveColumn<T>[];
+  readonly emptyMessage?: string;
   readonly rows: readonly T[];
 }) {
   return (
@@ -495,21 +576,27 @@ export function ResponsiveData<T extends { readonly id: string }>({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              {columns.map((column) => (
-                <td
-                  className={
-                    column.secondary ? "yc-secondary-column" : undefined
-                  }
-                  data-label={column.label}
-                  key={column.key}
-                >
-                  {column.render(row)}
-                </td>
-              ))}
+          {rows.length === 0 ? (
+            <tr className="yc-responsive-data__empty">
+              <td colSpan={columns.length}>{emptyMessage}</td>
             </tr>
-          ))}
+          ) : (
+            rows.map((row) => (
+              <tr key={row.id}>
+                {columns.map((column) => (
+                  <td
+                    className={
+                      column.secondary ? "yc-secondary-column" : undefined
+                    }
+                    data-label={column.label}
+                    key={column.key}
+                  >
+                    {column.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

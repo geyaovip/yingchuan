@@ -12,7 +12,7 @@ import {
   type NavigationItem,
   type ResponsiveColumn,
 } from "@yingchuan/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { api } from "./api";
@@ -163,31 +163,24 @@ interface NotificationDeliveryResponse {
 }
 
 const navigation: readonly NavigationItem[] = [
-  { href: "/admin", label: "管理首页", marker: "⌂" },
-  { href: "/admin/users", label: "用户与工作区", marker: "◎" },
-  { href: "/admin/projects", label: "项目", marker: "◇" },
-  { href: "/admin/tasks", label: "任务", marker: "↻" },
-  { href: "/admin/models", label: "模型", marker: "✦" },
-  { href: "/admin/agent", label: "Agent", marker: "·" },
-  { href: "/admin/notification-channels", label: "通知渠道", marker: "○" },
-  { href: "/admin/usage", label: "用量", marker: "↗" },
-  { href: "/admin/audit-logs", label: "审计日志", marker: "≡" },
+  { href: "/admin", icon: "dashboard", label: "管理首页" },
+  { href: "/admin/users", icon: "team", label: "用户与工作区" },
+  { href: "/admin/projects", icon: "projects", label: "项目" },
+  { href: "/admin/tasks", icon: "tasks", label: "任务" },
+  { href: "/admin/models", icon: "models", label: "模型" },
+  { href: "/admin/agent", icon: "agent", label: "Agent" },
+  {
+    href: "/admin/notification-channels",
+    icon: "notifications",
+    label: "通知渠道",
+  },
+  { href: "/admin/usage", icon: "usage", label: "用量" },
+  { href: "/admin/audit-logs", icon: "audit", label: "审计日志" },
 ];
 
 export function App() {
   const [session, setSession] = useState<SessionView>();
   const [loading, setLoading] = useState(true);
-  const previewSession =
-    import.meta.env.DEV &&
-    new URLSearchParams(globalThis.location.search).get("preview") === "shell"
-      ? ({
-          audience: "admin",
-          csrfToken: "development-preview",
-          email: "geyaovip@163.com",
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          userId: "development-preview",
-        } satisfies SessionView)
-      : undefined;
   useEffect(() => {
     void api
       .getSession()
@@ -195,7 +188,6 @@ export function App() {
       .catch(() => setSession(undefined))
       .finally(() => setLoading(false));
   }, []);
-  if (previewSession) return <AdminShell session={previewSession} />;
   if (loading)
     return (
       <main className="yc-auth-page">
@@ -298,19 +290,19 @@ function AdminShell({ session }: { readonly session: SessionView }) {
       <Routes>
         <Route path="/admin" element={<AdminHome />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/workspaces" element={<AdminUsers />} />
         <Route path="/admin/projects" element={<AdminProjects />} />
         <Route path="/admin/tasks" element={<AdminTasks />} />
         <Route path="/admin/agent" element={<AdminAgent />} />
+        <Route path="/admin/agent/runs" element={<AdminAgent />} />
         <Route
           path="/admin/notification-channels"
           element={<TelegramSettings />}
         />
         <Route path="/admin/models" element={<ModelManagement />} />
+        <Route path="/admin/usage" element={<AdminUsage />} />
         <Route path="/admin/audit-logs" element={<AuditLogs />} />
-        <Route
-          path="*"
-          element={<AdminPlaceholder path={location.pathname} />}
-        />
+        <Route path="*" element={<AdminNotFound />} />
       </Routes>
     </AppShell>
   );
@@ -386,7 +378,6 @@ function ModelManagement() {
     <>
       <PageHeader
         description="P0 统一通过火山方舟调用，四个模型族各自版本化配置。"
-        eyebrow="MODEL GATEWAY"
         title="模型管理"
       />
       {error && (
@@ -848,14 +839,13 @@ function AdminHome() {
   return (
     <>
       <PageHeader
-        description="平台健康、模型运行和待处理事项的统一入口。"
-        eyebrow="ADMIN"
+        description="查看平台运行状态、模型调用和待处理事项。"
         metadata={
           data
             ? `${new Date(data.dataFrom).toLocaleString("zh-CN")} — ${new Date(data.dataTo).toLocaleString("zh-CN")}`
             : "最近 24 小时运行数据"
         }
-        title="管理首页"
+        title="运营概览"
       />
       {error ? (
         <StatePanel description={error} title="无法加载管理摘要" tone="error" />
@@ -935,7 +925,6 @@ function AdminUsers() {
   return (
     <>
       <PageHeader
-        eyebrow="SUPPORT"
         title="用户与工作区"
         description="查看用户、角色、项目数量和额度流水，并执行受控状态变更。"
       />
@@ -985,18 +974,25 @@ function AdminUsers() {
               render: (row) => (
                 <Button
                   intent="ghost"
-                  onClick={() =>
+                  onClick={() => {
+                    const next =
+                      row.status === "active" ? "suspended" : "active";
+                    if (
+                      !globalThis.confirm(
+                        next === "suspended"
+                          ? `确认停用 ${row.displayEmail}？其现有会话会立即失效。`
+                          : `确认恢复 ${row.displayEmail} 的访问权限？`,
+                      )
+                    )
+                      return;
                     void api
                       .request(`/admin/users/${row.id}/status`, {
-                        body: JSON.stringify({
-                          status:
-                            row.status === "active" ? "suspended" : "active",
-                        }),
+                        body: JSON.stringify({ status: next }),
                         method: "PATCH",
                       })
                       .then(load)
-                      .catch((caught) => setError(messageFor(caught)))
-                  }
+                      .catch((caught) => setError(messageFor(caught)));
+                  }}
                 >
                   {row.status === "active" ? "停用" : "恢复"}
                 </Button>
@@ -1021,7 +1017,6 @@ function AdminProjects() {
   return (
     <>
       <PageHeader
-        eyebrow="SUPPORT"
         title="项目"
         description="跨工作区只读查看项目上下文、品牌实体和最新任务状态。"
       />
@@ -1081,7 +1076,6 @@ function AdminTasks() {
   return (
     <>
       <PageHeader
-        eyebrow="OPERATIONS"
         title="任务"
         description="查看任务状态、成功/失败子任务和处理时间。"
       />
@@ -1184,7 +1178,7 @@ function AdminAgent() {
   return (
     <>
       <PageHeader
-        eyebrow="OPENCLAW 2026.7.1"
+        metadata="OpenClaw 2026.7.1"
         title="运营助手"
         description="只基于已注册 Skill 的实时数据回答；答案显示数据引用和运行消耗。"
       />
@@ -1295,7 +1289,6 @@ function TelegramSettings() {
   return (
     <>
       <PageHeader
-        eyebrow="ADMIN ONLY"
         title="Telegram 通知渠道"
         description="Token 与 Chat ID 加密保存且永不回显；测试消息有幂等与限流。"
       />
@@ -1442,6 +1435,189 @@ function TelegramSettings() {
   );
 }
 
+function AdminUsage() {
+  const [users, setUsers] = useState<readonly AdminUserResponse[]>();
+  const [workspaceId, setWorkspaceId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const load = async () => {
+    try {
+      setUsers(await api.request<readonly AdminUserResponse[]>("/admin/users"));
+      setError(undefined);
+    } catch (caught) {
+      setError(messageFor(caught));
+    }
+  };
+  useEffect(() => {
+    const timer = globalThis.setTimeout(() => void load(), 0);
+    return () => globalThis.clearTimeout(timer);
+  }, []);
+  const workspaces = useMemo(() => {
+    const unique = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        projectCount: number;
+        usageMicros: bigint;
+      }
+    >();
+    for (const user of users ?? [])
+      for (const membership of user.memberships) {
+        const workspace = membership.workspace;
+        if (unique.has(workspace.id)) continue;
+        unique.set(workspace.id, {
+          id: workspace.id,
+          name: workspace.name,
+          projectCount: workspace._count.projects,
+          usageMicros: workspace.usageLedgerEntries.reduce(
+            (sum, entry) => sum + BigInt(entry.quantityMicros),
+            0n,
+          ),
+        });
+      }
+    return [...unique.values()];
+  }, [users]);
+  const selectedWorkspaceId = workspaceId || workspaces[0]?.id || "";
+  const adjust = async () => {
+    const numeric = Number(amount);
+    if (!selectedWorkspaceId || !Number.isFinite(numeric) || numeric === 0)
+      return;
+    if (
+      !globalThis.confirm(
+        `确认调整 ${numeric > 0 ? "增加" : "扣减"} ${Math.abs(numeric).toFixed(2)} 元额度？该操作会写入追加式账本。`,
+      )
+    )
+      return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.request(
+        `/admin/workspaces/${selectedWorkspaceId}/quota-adjustments`,
+        {
+          body: JSON.stringify({
+            quantityMicros: Math.round(numeric * 1_000_000).toString(),
+            reason: reason.trim(),
+          }),
+          method: "POST",
+        },
+      );
+      setAmount("");
+      setReason("");
+      await load();
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <PageHeader
+        description="查看工作区额度汇总并执行受审计的追加式调整；P0 不接支付订单。"
+        title="用量与额度"
+      />
+      {error && (
+        <StatePanel description={error} title="操作未完成" tone="error" />
+      )}
+      {!users ? (
+        <Skeleton lines={6} />
+      ) : (
+        <div className="yc-content-grid">
+          <section>
+            {workspaces.length ? (
+              <ResponsiveData
+                columns={[
+                  {
+                    key: "workspace",
+                    label: "工作区",
+                    render: (row: (typeof workspaces)[number]) => row.name,
+                  },
+                  {
+                    key: "balance",
+                    label: "当前额度",
+                    render: (row: (typeof workspaces)[number]) =>
+                      adminFormatMicros(row.usageMicros),
+                  },
+                  {
+                    key: "projects",
+                    label: "项目",
+                    render: (row: (typeof workspaces)[number]) =>
+                      row.projectCount,
+                  },
+                  {
+                    key: "id",
+                    label: "工作区 ID",
+                    render: (row: (typeof workspaces)[number]) => row.id,
+                    secondary: true,
+                  },
+                ]}
+                rows={workspaces}
+              />
+            ) : (
+              <StatePanel
+                description="创建工作区后会显示额度汇总。"
+                title="暂无工作区"
+              />
+            )}
+          </section>
+          <section className="yc-card yc-section-card">
+            <h2>调整额度</h2>
+            <FormField label="工作区">
+              <select
+                onChange={(event) => setWorkspaceId(event.target.value)}
+                value={selectedWorkspaceId}
+              >
+                {workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField
+              hint="正数增加额度，负数扣减额度。"
+              label="调整金额（元）"
+            >
+              <input
+                inputMode="decimal"
+                onChange={(event) => setAmount(event.target.value)}
+                step="0.01"
+                type="number"
+                value={amount}
+              />
+            </FormField>
+            <FormField
+              hint="至少 3 个字符，会随账本和审计记录保存。"
+              label="调整原因"
+            >
+              <textarea
+                maxLength={200}
+                onChange={(event) => setReason(event.target.value)}
+                rows={3}
+                value={reason}
+              />
+            </FormField>
+            <Button
+              disabled={
+                busy ||
+                !selectedWorkspaceId ||
+                !amount ||
+                reason.trim().length < 3
+              }
+              onClick={() => void adjust()}
+            >
+              {busy ? "提交中…" : "确认调整"}
+            </Button>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}
+
 function AuditLogs() {
   const [rows, setRows] = useState<readonly AuditRow[]>();
   const [error, setError] = useState<string>();
@@ -1491,7 +1667,6 @@ function AuditLogs() {
     <>
       <PageHeader
         description="管理写操作、敏感配置和 Agent 动作的追加式记录。"
-        eyebrow="安全"
         title="审计日志"
       />
       <div className="yc-actions">
@@ -1519,17 +1694,30 @@ function AuditLogs() {
   );
 }
 
-function AdminPlaceholder({ path }: { readonly path: string }) {
-  const item = navigation.find((candidate) => candidate.href === path);
+function AdminNotFound() {
   return (
     <>
-      <PageHeader eyebrow="ADMIN" title={item?.label ?? "管理页面"} />
+      <PageHeader title="管理页面不存在" />
       <StatePanel
-        description="权限化菜单已就绪，该管理能力会在对应版本接入真实数据。"
-        title="模块建设中"
+        action={
+          <Button onClick={() => (globalThis.location.href = "/admin")}>
+            返回管理首页
+          </Button>
+        }
+        description="当前地址无对应管理能力，或当前管理员没有访问权限。"
+        title="无法打开此页面"
+        tone="error"
       />
     </>
   );
+}
+
+function adminFormatMicros(value: bigint): string {
+  return new Intl.NumberFormat("zh-CN", {
+    currency: "CNY",
+    maximumFractionDigits: 6,
+    style: "currency",
+  }).format(Number(value) / 1_000_000);
 }
 
 function messageFor(error: unknown): string {

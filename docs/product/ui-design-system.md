@@ -10,9 +10,9 @@
 
 ```css
 :root {
-  --yc-bg: #fbfaf8;
+  --yc-bg: #faf9f6;
   --yc-surface: #ffffff;
-  --yc-surface-subtle: #f4f2ee;
+  --yc-surface-subtle: #f3f2ee;
   --yc-text: #27251e;
   --yc-text-secondary: #6f6b63;
   --yc-border: rgba(39, 26, 0, 0.12);
@@ -27,10 +27,10 @@
 
   --yc-radius-sm: 6px;
   --yc-radius-md: 10px;
-  --yc-radius-lg: 16px;
+  --yc-radius-lg: 14px;
   --yc-radius-pill: 9999px;
 
-  --yc-shadow-card: 0 1px 2px rgba(28, 25, 23, 0.05);
+  --yc-shadow-card: 0 1px 1px rgba(28, 25, 23, 0.025);
   --yc-sidebar-width: 224px;
   --yc-content-max: 1280px;
 }
@@ -79,6 +79,8 @@
 - 项目概览保持“结论优先”：总分、变化、最重要问题、下一步任务位于首屏。
 - 报告和 Agent 页面保持阅读宽度，正文建议不超过 760px；证据和元数据可使用侧栏/抽屉。
 - Prompt、任务、门店和管理列表属于高密度页面，可使用紧凑表格，但行高不低于 40px。
+- 页面标题只保留当前任务、必要说明和主要操作；不使用重复的英文眉题或装饰性编号。
+- 应用导航和状态反馈使用统一图标组件，不使用文字符号模拟图标。
 - 不为装饰增加大面积渐变、玻璃效果或无业务意义的动画。
 
 ## 6. 交互与响应式验收
