@@ -2,7 +2,7 @@
 set -eu
 
 backup_root=${YINGCHUAN_BACKUP_ROOT:-/srv/yingchuan/backups/postgres}
-compose_file=${YINGCHUAN_COMPOSE_FILE:-/opt/yingchuan/deploy/compose.production.yaml}
+compose_file=${YINGCHUAN_COMPOSE_FILE:-/opt/yingchuan/current/deploy/compose.production.yaml}
 environment_file=${YINGCHUAN_ENV_FILE:-/etc/yingchuan/production.env}
 restore_database=yingchuan_restore_verify
 backup=${1:-}

@@ -69,6 +69,11 @@ jobs:
       - name: Load guarded test fixtures
         run: npm run db:fixtures:test
 
+      - name: Validate deployment scripts and Compose
+        run: |
+          deploy/scripts/test-deployment-scripts.sh
+          docker compose -f deploy/compose.production.yaml config >/dev/null
+
       - name: Run repository quality gate
         run: npm run check
 

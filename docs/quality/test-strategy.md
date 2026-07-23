@@ -80,6 +80,7 @@
 - staging 通过 Vite SPA 构建、Cloudflare Pages 深层链接刷新、`chatway.chat` 自定义域名会话、OpenClaw 固定版本、火山方舟适配器和四类 ModelConfig 契约 smoke test；
 - 已知限制写入发布说明并关联开放问题；
 - 发布后检查错误率、延迟、队列、成本和报告成功率。
+- CI 必须执行部署脚本测试和 Compose 展开校验；生产发布只有在资源门禁、API ready、Worker 心跳、OpenClaw、Outbox 积压和公网 ready 全部通过后才记录成功版本。应用健康检查失败时验证自动恢复上一成功 SHA；数据库迁移只允许向后兼容的前向修复。
 
 ## 8. E2 应用壳回归
 

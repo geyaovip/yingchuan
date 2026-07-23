@@ -16,7 +16,7 @@ Web/Admin 两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL
 
 ## 云服务器
 
-服务器预留 `/opt/yingchuan`（部署文件）、`/srv/yingchuan`（数据）和 `/etc/yingchuan/secrets`（密钥）。`production.env` 只存放 `IMAGE_PREFIX`、`ADMIN_ALLOWED_EMAILS=geyaovip@163.com` 和资源上限等非密钥配置。数据库与 Redis 连接串分别放入 `database_url`、`redis_url`，PostgreSQL 密码放入 `postgres_password`；Redis ACL 从 `redis-users.acl.example` 生成后保存为 `redis_acl`。认证 HMAC pepper、Resend API Key、OpenClaw Gateway Token、模型密钥主密钥和通知密钥主密钥分别放入 `auth_pepper`、`resend_api_key`、`openclaw_gateway_token`、`model_credential_master_key`、`notification_credential_master_key`。当前共享服务器使用 `root:docker`、密钥目录 `0750`、目录内文件 `0644`：宿主机普通用户无法遍历密钥目录，容器中的非 root 应用用户则可读取 Compose 只读挂载的 secret；应用只通过 `*_FILE` 入口读取密钥。
+服务器预留 `/opt/yingchuan/releases/<commit-sha>`（不可变发布文件）、`/opt/yingchuan/current`（当前成功版本软链接）、`/opt/yingchuan/state`（最后成功版本）、`/srv/yingchuan`（数据）和 `/etc/yingchuan/secrets`（密钥）。`production.env` 只存放 `IMAGE_PREFIX`、`ADMIN_ALLOWED_EMAILS=geyaovip@163.com`、资源上限和部署阈值等非密钥配置。数据库与 Redis 连接串分别放入 `database_url`、`redis_url`，PostgreSQL 密码放入 `postgres_password`；Redis ACL 从 `redis-users.acl.example` 生成后保存为 `redis_acl`。认证 HMAC pepper、Resend API Key、OpenClaw Gateway Token、模型密钥主密钥和通知密钥主密钥分别放入 `auth_pepper`、`resend_api_key`、`openclaw_gateway_token`、`model_credential_master_key`、`notification_credential_master_key`。当前共享服务器使用 `root:docker`、密钥目录 `0750`、目录内文件 `0644`：宿主机普通用户无法遍历密钥目录，容器中的非 root 应用用户则可读取 Compose 只读挂载的 secret；应用只通过 `*_FILE` 入口读取密钥。
 
 所有命令必须同时带 `COMPOSE_PROJECT_NAME=yingchuan` 和 `--project-name yingchuan`。发布顺序是启动专属 PostgreSQL/Redis、运行一次性 migration、再只更新 API/Worker；禁止全局 Compose down、`docker system prune` 或影响其他项目的端口清理。
 
@@ -27,16 +27,19 @@ Web/Admin 两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL
 3. 创建 `/srv/yingchuan/postgres`、`redis`、`private-files` 和 `backups/postgres`，以及 `/etc/yingchuan/secrets`。密钥目录与文件按上一节权限设置；数据目录所有者按对应容器 UID 设置，不能开放全局写权限。
 4. 在 `production.env` 设置 `OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.7.1@sha256:<经 staging 验证的摘要>`；发布工作流会拒绝浮动 tag、非官方镜像或缺少摘要的配置。
 5. 当前宿主没有共享 Caddy，映川 Compose 因此使用独立、固定摘要的 Caddy 容器占用空闲的 80/443，并通过内部 `backend` 网络代理 `api:3000`。`api.chatway.chat` 使用 Cloudflare DNS-only A 记录，TLS 由该容器的 Let's Encrypt 自动签发和续期；不得改用已有 Cloudflare Tunnel。PostgreSQL、Redis 与 migration 只加入 internal `backend`；API/Worker 通过独立 `service_egress` 访问 Resend 和火山方舟，OpenClaw 通过单独的 `agent_egress` 出站。
+6. `production.env` 保留轻量默认值：至少 10 GiB 可用磁盘、384 MiB 当前可用内存、备份目录不超过 2 GiB、Docker 日志单文件 10 MiB/最多 3 个、Outbox 超过 15 分钟才算积压。阈值可按共享宿主实测收紧，不能通过删除其他项目资源来满足门禁。
 
 ### 发布与回滚
 
-后端 Actions 只允许手动触发，并绑定 GitHub `production` Environment 保护。它先复用完整 CI，再用提交 SHA 构建不可变的 `api`、`worker`、`migrate` 镜像，随后验证 OpenClaw digest、执行迁移并滚动更新 API/Worker/OpenClaw。迁移容器必须断开标准输入，避免吞掉 SSH 发布脚本的剩余命令；上线后同时执行容器内 ready 检查与公网 HTTPS ready 检查。服务器需要在 `production.env` 中把 `IMAGE_PREFIX` 设为 `ghcr.io/<owner>/<repo>`。
+后端 Actions 只允许手动触发，并绑定 GitHub `production` Environment 保护。它先复用完整 CI，再用提交 SHA 构建不可变的 `api`、`worker`、`migrate` 镜像，并把部署配置上传到同 SHA 的不可变发布目录。`rollout.sh` 在变更应用服务前检查磁盘、可用内存、备份占用和既有 Outbox 积压，随后验证 OpenClaw/Caddy digest、执行迁移并更新 API/Worker/OpenClaw。迁移容器必须断开标准输入，避免吞掉 SSH 发布脚本的剩余命令。
 
-若应用发布失败，用上一个已通过版本的提交 SHA 显式设置 `IMAGE_TAG`，仅重新拉取并更新 `api worker`。数据库迁移采用向前修复；不得回滚已执行的生产迁移文件。
+上线后依次验证 API、Worker 心跳、OpenClaw、Outbox 积压和公网 HTTPS ready；全部通过后才原子更新 `current` 与 `last-successful-image-tag`。应用更新开始后的任一检查失败会自动使用上一成功 SHA 和发布目录恢复 API、Worker、OpenClaw、Caddy；首次切换到不可变目录前若没有可识别的上一 SHA，只报告无法自动回滚。数据库迁移采用向后兼容的向前修复，不回滚已执行的生产迁移文件。服务器需要在 `production.env` 中把 `IMAGE_PREFIX` 设为 `ghcr.io/<owner>/<repo>`。
 
 ### 备份与恢复演练
 
-`yingchuan-postgres-backup.timer` 每日 03:20 UTC 执行 `deploy/scripts/backup-postgres.sh`，并在 30 分钟内随机错峰；输出是带 SHA-256 校验的自定义格式备份。至少每月对一份明确的备份执行 `deploy/scripts/verify-restore.sh /srv/yingchuan/backups/postgres/<file>.dump`；脚本只创建并删除固定的 `yingchuan_restore_verify` 数据库，不修改生产库。当前备份仍与服务器同机，不能覆盖整机或磁盘损坏风险。
+`yingchuan-postgres-backup.timer` 每日 03:20 UTC 执行当前成功发布目录中的 `backup-postgres.sh`，并在 30 分钟内随机错峰；输出是带 SHA-256 校验的自定义格式备份。验证阶段默认只保留最近 7 份本机备份，清理脚本只接受固定命名且位于 `backups/postgres` 下的文件。正式投放前至少对一份明确备份执行 `verify-restore.sh /srv/yingchuan/backups/postgres/<file>.dump` 并增加异机备份；恢复脚本只创建并删除固定的 `yingchuan_restore_verify` 数据库，不修改生产库。
+
+所有 Compose 服务使用 `json-file` 日志轮转，默认单文件 10 MiB、最多 3 个文件，避免共享宿主被无限日志占满。Worker 每次成功完成 Outbox 调度周期后更新 tmpfs 心跳；数据库或调度循环持续异常会使容器变为 unhealthy，而不是仅以 PID 存活冒充健康。
 
 ## 外部授权清单
 

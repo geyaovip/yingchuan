@@ -5,7 +5,8 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/yingchuan/deploy/scripts/backup-postgres.sh
+EnvironmentFile=/etc/yingchuan/production.env
+ExecStart=/opt/yingchuan/current/deploy/scripts/backup-postgres.sh
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true

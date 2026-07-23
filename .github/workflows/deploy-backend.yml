@@ -55,15 +55,15 @@ jobs:
           install -m 0600 /dev/null "$RUNNER_TEMP/ssh/key"
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/key"
           printf '%s\n' "$SSH_HOST_KEY" > "$RUNNER_TEMP/ssh/known_hosts"
-      - name: Upload immutable deployment files
+      - name: Upload immutable release files
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 0755 /opt/yingchuan/deploy'
-          scp -i "$RUNNER_TEMP/ssh/key" -P "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -r deploy/compose.production.yaml deploy/caddy deploy/openclaw deploy/redis deploy/scripts deploy/systemd "$DEPLOY_USER@$DEPLOY_HOST:/opt/yingchuan/deploy/"
-      - name: Migrate and roll out isolated services
+          ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 0755 /opt/yingchuan/releases/${GITHUB_SHA}"
+          scp -i "$RUNNER_TEMP/ssh/key" -P "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -r deploy "$DEPLOY_USER@$DEPLOY_HOST:/opt/yingchuan/releases/${GITHUB_SHA}/"
+      - name: Migrate and roll out with automatic rollback
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -72,46 +72,5 @@ jobs:
           GHCR_USER: ${{ github.actor }}
         run: |
           printf '%s' "$GHCR_TOKEN" | ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 0700 /opt/yingchuan/.docker && docker --config /opt/yingchuan/.docker login ghcr.io -u '$GHCR_USER' --password-stdin"
-          ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "export IMAGE_TAG=${GITHUB_SHA}; bash -s" <<'REMOTE'
-          set -eu
-          cd /opt/yingchuan
-          export COMPOSE_PROJECT_NAME=yingchuan
-          export DOCKER_CONFIG=/opt/yingchuan/.docker
-          sudo install -m 0644 deploy/systemd/yingchuan-postgres-backup.service /etc/systemd/system/yingchuan-postgres-backup.service
-          sudo install -m 0644 deploy/systemd/yingchuan-postgres-backup.timer /etc/systemd/system/yingchuan-postgres-backup.timer
-          sudo systemctl daemon-reload
-          sudo systemctl enable --now yingchuan-postgres-backup.timer
-          openclaw_image=$(sed -n 's/^OPENCLAW_IMAGE=//p' /etc/yingchuan/production.env | tail -n 1)
-          if ! printf '%s' "$openclaw_image" | grep -Eq '^ghcr\.io/openclaw/openclaw:2026\.7\.1@sha256:[0-9a-f]{64}$'; then
-            echo 'OPENCLAW_IMAGE must pin official 2026.7.1 by sha256 digest.' >&2
-            exit 1
-          fi
-          caddy_image=$(sed -n 's/^CADDY_IMAGE=//p' /etc/yingchuan/production.env | tail -n 1)
-          if ! printf '%s' "$caddy_image" | grep -Eq '^caddy:2\.10\.2-alpine@sha256:[0-9a-f]{64}$'; then
-            echo 'CADDY_IMAGE must pin caddy:2.10.2-alpine by sha256 digest.' >&2
-            exit 1
-          fi
-          compose='docker compose --project-name yingchuan --env-file /etc/yingchuan/production.env -f deploy/compose.production.yaml'
-          available_kb=$(df -Pk / | awk 'NR == 2 { print $4 }')
-          if [ "$available_kb" -lt 10485760 ]; then
-            echo 'Root filesystem must have at least 10 GiB free before deployment.' >&2
-            exit 1
-          fi
-          $compose pull api worker migrate openclaw-gateway caddy
-          $compose up -d postgres redis
-          $compose --profile migration run --rm -T migrate </dev/null
-          $compose up -d openclaw-gateway
-          $compose up -d --no-deps api worker
-          $compose up -d --no-deps caddy
-          $compose ps
-          ready_attempt=0
-          until $compose exec -T api node -e "fetch('http://127.0.0.1:3000/api/v1/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; do
-            ready_attempt=$((ready_attempt + 1))
-            if [ "$ready_attempt" -ge 12 ]; then
-              echo 'API did not become ready within 60 seconds.' >&2
-              exit 1
-            fi
-            sleep 5
-          done
-          REMOTE
+          ssh -i "$RUNNER_TEMP/ssh/key" -p "$DEPLOY_PORT" -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "export COMPOSE_PROJECT_NAME=yingchuan DOCKER_CONFIG=/opt/yingchuan/.docker IMAGE_TAG=${GITHUB_SHA}; /opt/yingchuan/releases/${GITHUB_SHA}/deploy/scripts/rollout.sh"
           curl --fail --retry 12 --retry-delay 5 --retry-all-errors https://api.chatway.chat/api/v1/ready

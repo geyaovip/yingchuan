@@ -3,6 +3,7 @@ import {
   type OnApplicationShutdown,
   type OnModuleInit,
 } from "@nestjs/common";
+import { writeFile } from "node:fs/promises";
 import { AnalysisApplicationService } from "@yingchuan/analysis";
 import { createDatabaseClient, type PrismaClient } from "@yingchuan/database";
 import { DataLifecycleApplicationService } from "@yingchuan/data-lifecycle";
@@ -32,6 +33,17 @@ const logger = createServiceLogger({
 interface DomainEventMessage {
   readonly messageId?: unknown;
   readonly type?: unknown;
+}
+
+export async function writeWorkerHeartbeat(
+  heartbeatFile: string | undefined,
+  timestamp = Date.now(),
+): Promise<void> {
+  if (!heartbeatFile) return;
+  await writeFile(heartbeatFile, String(timestamp), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
 }
 
 @Injectable()
@@ -223,6 +235,7 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
         ).reconcile();
         this.lastReconciledAt = Date.now();
       }
+      await this.writeHeartbeat();
     } catch (error) {
       logger.error(
         {
@@ -245,5 +258,9 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
       port: Number(parsed.port || 6379),
       username: parsed.username || undefined,
     };
+  }
+
+  private async writeHeartbeat(): Promise<void> {
+    await writeWorkerHeartbeat(process.env.WORKER_HEALTH_FILE);
   }
 }

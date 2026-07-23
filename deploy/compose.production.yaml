@@ -1,3 +1,9 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-file: ${DOCKER_LOG_MAX_FILES:-3}
+    max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -12,6 +18,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    logging: *default-logging
     networks: [backend]
     mem_limit: ${POSTGRES_MEMORY_LIMIT:-1g}
     restart: unless-stopped
@@ -34,6 +41,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    logging: *default-logging
     networks: [backend]
     mem_limit: ${REDIS_MEMORY_LIMIT:-512m}
     restart: unless-stopped
@@ -53,6 +61,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    logging: *default-logging
     restart: "no"
 
   api:
@@ -93,6 +102,7 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+    logging: *default-logging
     networks: [backend, service_egress]
     mem_limit: ${API_MEMORY_LIMIT:-768m}
     read_only: true
@@ -117,6 +127,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    logging: *default-logging
     mem_limit: ${CADDY_MEMORY_LIMIT:-128m}
     networks: [backend, caddy_egress]
     ports:
@@ -155,6 +166,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+    logging: *default-logging
     mem_limit: ${OPENCLAW_MEMORY_LIMIT:-1g}
     networks: [backend, agent_egress]
     read_only: true
@@ -179,11 +191,25 @@ services:
       NOTIFICATION_CREDENTIAL_MASTER_KEY_FILE: /run/secrets/notification_credential_master_key
       PRIVATE_FILE_ROOT: /data/private
       REDIS_URL_FILE: /run/secrets/redis_url
+      WORKER_HEALTH_FILE: /tmp/worker-heartbeat
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const fs=require('node:fs');const age=Date.now()-Number(fs.readFileSync('/tmp/worker-heartbeat','utf8'));if(!Number.isFinite(age)||age>30000)process.exit(1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    logging: *default-logging
     networks: [backend, service_egress]
     mem_limit: ${WORKER_MEMORY_LIMIT:-1g}
     read_only: true
