@@ -26,14 +26,14 @@
 
 2026-07-23 账户实测快照（运行时仍以后续管理端探测为准）：
 
-| 模型族   | Model ID                       | API 模式  | 结果                                                                                                                                          |
-| -------- | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| 豆包     | `doubao-seed-2-1-turbo-260628` | Responses | 基础调用通过；账户未开通 Web Search，`nativeWebSearch=false`                                                                                  |
-| GLM      | `glm-5-2-260617`               | Responses | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                                                                          |
-| DeepSeek | `deepseek-v4-pro-260425`       | Responses | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                                                                          |
-| Kimi     | 无当前可用 ID                  | 禁用      | 模型广场有 Kimi-K2 详情页，但体验中心与预置推理列表无 Kimi；`kimi-k2`、`kimi-k2-250711` 标准 API 实测均返回 `InvalidEndpointOrModel.NotFound` |
+| 模型族   | Model ID                          | API 模式          | 结果                                                                                                                                                                                 |
+| -------- | --------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 豆包     | `doubao-seed-2-1-turbo-260628`    | Responses         | 基础调用通过；账户未开通 Web Search，`nativeWebSearch=false`                                                                                                                         |
+| GLM      | `glm-5-2-260617`                  | Responses         | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                                                                                                                 |
+| DeepSeek | `deepseek-v4-pro-260425`          | Responses         | 基础调用通过；Web Search 返回 `ToolNotOpen`，`nativeWebSearch=false`                                                                                                                 |
+| Kimi     | `kimi-k2-thinking-251104`（候选） | Responses（禁用） | 新版控制台显示服务已开通并列出三组 Kimi ID，但生产自定义 Key 的可访问 Model ID 中不含 Kimi；三组 Responses 及最新模型 Chat Completions 的生产探测均返回 `PROVIDER_MODEL_UNAVAILABLE` |
 
-映川专用方舟 Key 仅授权 Model ID 范围并保存在本机钥匙串；共享服务器就绪后写入服务端密钥系统。账户未开通 Web Search 时不购买或调用其他搜索能力，所有需要联网的组合按 unsupported 跳过。
+映川专用方舟 Key 仅授权 Model ID 范围并保存在本机钥匙串；共享服务器就绪后写入服务端密钥系统。管理端提供“保存配置 → 探测已保存版本 → 启用”的受控流程，供应商原始错误正文不会返回前端。Kimi 当前阻塞于生产 Key 的最小权限范围，未获得管理员明确批准前不得把 Key 扩大为“全部”。账户未开通 Web Search 时不购买或调用其他搜索能力，所有需要联网的组合按 unsupported 跳过。
 
 官方资料：
 

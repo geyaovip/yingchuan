@@ -44,6 +44,6 @@ Web/Admin 两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL
 - Cloudflare：三个 Pages 项目、自定义域名和 `api.chatway.chat` 的 DNS-only A 记录均已完成；
 - 共享服务器：已完成只读盘点、映川专用部署密钥、独立目录和受限资源配置；
 - Resend：`mail.chatway.chat` 已完成 DNS 验证和投递 smoke，域名限定生产 API Key 已写入 `/etc/yingchuan/secrets/resend_api_key`；
-- 火山方舟：生产加密凭据与 Provider 已配置；豆包、GLM、DeepSeek 已启用；Kimi-K2 模型广场页面存在，但当前账号尚无标准 API 可调用 Model ID，因此 Kimi 保持禁用；
+- 火山方舟：生产加密凭据与 Provider 已配置；豆包、GLM、DeepSeek 已启用；新版控制台显示 Kimi-K2 服务已开通并列出三组 Model ID，但生产 Key 的自定义权限范围未包含 Kimi，真实探测均返回 `PROVIDER_MODEL_UNAVAILABLE`，因此 Kimi 保持禁用；未经管理员明确批准不得把 Key 权限扩大为“全部”；
 - OpenClaw：允许拉取官方 GHCR 镜像，并确认 staging 验证后的 `2026.7.1` digest；
 - Telegram：后台上线后由白名单管理员填写 Bot Token/Chat ID 并发送测试消息。
