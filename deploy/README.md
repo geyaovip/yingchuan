@@ -41,7 +41,7 @@ Web/Admin 两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL
 ## 外部授权清单
 
 - GitHub：目标仓库、GHCR package 写权限、受保护 `production` Environment，以及 `DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER`、`DEPLOY_SSH_PRIVATE_KEY`、`DEPLOY_SSH_HOST_KEY`；
-- Cloudflare：两个 Pages 项目、自定义域名和 `api.chatway.chat` 的 DNS-only A 记录均已完成；
+- Cloudflare：三个 Pages 项目、自定义域名和 `api.chatway.chat` 的 DNS-only A 记录均已完成；
 - 共享服务器：已完成只读盘点、映川专用部署密钥、独立目录和受限资源配置；
 - Resend：`mail.chatway.chat` 已完成 DNS 验证和投递 smoke，域名限定生产 API Key 已写入 `/etc/yingchuan/secrets/resend_api_key`；
 - 火山方舟：生产加密凭据与 Provider 已配置；豆包、GLM、DeepSeek 已启用；Kimi-K2 模型广场页面存在，但当前账号尚无标准 API 可调用 Model ID，因此 Kimi 保持禁用；
