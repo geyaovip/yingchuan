@@ -1016,10 +1016,15 @@
   "servers": [],
   "components": {
     "securitySchemes": {
-      "yingchuan_session": {
+      "yingchuan_user_session": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "yc_session"
+        "name": "yc_user_session"
+      },
+      "yingchuan_admin_session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "yc_admin_session"
       }
     },
     "schemas": {}

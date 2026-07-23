@@ -22,7 +22,7 @@ GET /api/v1/metrics  # Prometheus 文本格式，仅允许监控网络访问
 
 ## 2. 鉴权与租户上下文
 
-- 用户输入邮箱和一次性验证码登录；验证成功后由 `api.chatway.chat` 设置 host-only、HttpOnly、Secure、SameSite=Lax Session Cookie。Resend 仅负责发送邮件，不决定身份和 Session。
+- 用户输入邮箱和一次性验证码登录；验证成功后由 `api.chatway.chat` 设置 host-only、HttpOnly、Secure、SameSite=Lax Session Cookie。用户端使用 `yc_user_session`，管理端使用 `yc_admin_session`，两者可在同一浏览器并存；API 按路由与精确 Origin 选择对应会话，且不会把另一 audience 当成已登录。Resend 仅负责发送邮件，不决定身份和 Session。
 - Web/Admin 的 API 客户端必须使用 `credentials: 'include'`；API CORS 只允许 `https://app.chatway.chat` 和 `https://admin.chatway.chat`，不使用 `*`。
 - 所有改变状态的请求除 SameSite 校验外，还要求 Session 绑定 CSRF Token：`GET /auth/session` 在认证后返回随机 `csrfToken`，客户端通过 `X-CSRF-Token` 回传，服务端同时校验精确 Origin。Token 在登录、会话轮换和退出时轮换/作废，不扩大 Session Cookie Domain。
 - 工作区从路径或明确的 `X-Workspace-Id` 获取，服务端验证成员关系；不得信任客户端角色声明。

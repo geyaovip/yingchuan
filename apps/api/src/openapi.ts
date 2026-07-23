@@ -11,12 +11,20 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setDescription("映川用户端、管理端与 Worker 的公开 HTTP 契约。")
     .setVersion("0.1.0")
     .addCookieAuth(
-      "yc_session",
+      "yc_user_session",
       {
         in: "cookie",
         type: "apiKey",
       },
-      "yingchuan_session",
+      "yingchuan_user_session",
+    )
+    .addCookieAuth(
+      "yc_admin_session",
+      {
+        in: "cookie",
+        type: "apiKey",
+      },
+      "yingchuan_admin_session",
     )
     .build();
   return SwaggerModule.createDocument(app, config, {

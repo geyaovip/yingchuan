@@ -13,7 +13,7 @@ import {
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
 
-import { SESSION_COOKIE_NAME } from "./auth.constants.js";
+import { LEGACY_SESSION_COOKIE_NAME } from "./auth.constants.js";
 import {
   requestCodeSchema,
   stepUpVerifySchema,
@@ -21,6 +21,11 @@ import {
 } from "./auth.schemas.js";
 import { AuthService } from "./auth.service.js";
 import type { RequestIdentity } from "./auth.types.js";
+import {
+  sessionAudienceForRequest,
+  sessionCookieName,
+  sessionTokenForRequest,
+} from "./session-cookie.js";
 
 @Controller("auth")
 export class AuthController {
@@ -54,9 +59,19 @@ export class AuthController {
       input.audience,
       this.identity(request, true),
     );
-    response.cookie(SESSION_COOKIE_NAME, session.rawSessionToken, {
+    response.cookie(
+      sessionCookieName(input.audience),
+      session.rawSessionToken,
+      {
+        httpOnly: true,
+        maxAge: session.session.expiresAt.getTime() - Date.now(),
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      },
+    );
+    response.clearCookie(LEGACY_SESSION_COOKIE_NAME, {
       httpOnly: true,
-      maxAge: session.session.expiresAt.getTime() - Date.now(),
       path: "/",
       sameSite: "lax",
       secure: true,
@@ -66,7 +81,9 @@ export class AuthController {
 
   @Get("session")
   async getSession(@Req() request: Request) {
-    const auth = await this.authService.getSession(this.sessionToken(request));
+    const auth = await this.authService.getSession(
+      sessionTokenForRequest(request),
+    );
     return { data: this.authService.toSessionView(auth) };
   }
 
@@ -77,11 +94,22 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    const auth = await this.authService.getSession(this.sessionToken(request));
+    const auth = await this.authService.getSession(
+      sessionTokenForRequest(request),
+    );
     const identity = this.identity(request, false);
     this.authService.assertCsrf(auth, csrfToken, identity.origin);
     await this.authService.logout(auth, identity);
-    response.clearCookie(SESSION_COOKIE_NAME, {
+    response.clearCookie(
+      sessionCookieName(sessionAudienceForRequest(request)),
+      {
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      },
+    );
+    response.clearCookie(LEGACY_SESSION_COOKIE_NAME, {
       httpOnly: true,
       path: "/",
       sameSite: "lax",
@@ -95,7 +123,9 @@ export class AuthController {
     @Headers("x-csrf-token") csrfToken: string | undefined,
     @Req() request: Request,
   ): Promise<{ data: { accepted: true; developmentCode?: string } }> {
-    const auth = await this.authService.getSession(this.sessionToken(request));
+    const auth = await this.authService.getSession(
+      sessionTokenForRequest(request),
+    );
     const identity = this.identity(request, true);
     this.authService.assertCsrf(auth, csrfToken, identity.origin);
     const result = await this.authService.requestStepUpCode(auth, identity);
@@ -109,7 +139,9 @@ export class AuthController {
     @Req() request: Request,
   ) {
     const input = this.parse(() => stepUpVerifySchema.parse(body));
-    const auth = await this.authService.getSession(this.sessionToken(request));
+    const auth = await this.authService.getSession(
+      sessionTokenForRequest(request),
+    );
     const identity = this.identity(request, true);
     this.authService.assertCsrf(auth, csrfToken, identity.origin);
     const stepUpUntil = await this.authService.verifyStepUpCode(
@@ -134,16 +166,6 @@ export class AuthController {
       origin,
       userAgent: request.header("user-agent") ?? "unknown",
     };
-  }
-
-  private sessionToken(request: Request): string | undefined {
-    const cookies = request.header("cookie")?.split(";") ?? [];
-    for (const item of cookies) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
   }
 
   private parse<T>(operation: () => T): T {

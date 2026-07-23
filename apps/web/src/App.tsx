@@ -259,7 +259,13 @@ export function App() {
   useEffect(() => {
     void api
       .getSession()
-      .then(setSession)
+      .then((next) => {
+        if (next.audience === "user") setSession(next);
+        else {
+          api.setSession(undefined);
+          setSession(undefined);
+        }
+      })
       .catch(() => setSession(undefined))
       .finally(() => setLoading(false));
   }, []);

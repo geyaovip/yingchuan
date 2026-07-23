@@ -230,7 +230,13 @@ export function App() {
   useEffect(() => {
     void api
       .getSession()
-      .then((next) => setSession(next.audience === "admin" ? next : undefined))
+      .then((next) => {
+        if (next.audience === "admin") setSession(next);
+        else {
+          api.setSession(undefined);
+          setSession(undefined);
+        }
+      })
       .catch(() => setSession(undefined))
       .finally(() => setLoading(false));
   }, []);

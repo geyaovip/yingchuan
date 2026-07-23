@@ -12,8 +12,8 @@ import {
 import type { Request } from "express";
 import { z } from "zod";
 
-import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
+import { sessionToken as readSessionToken } from "../auth/session-cookie.js";
 import { BrandAssistantService } from "./brand-assistant.service.js";
 
 const runSchema = z
@@ -78,12 +78,7 @@ export class BrandAssistantController {
   }
 
   private token(request: Request) {
-    for (const item of request.header("cookie")?.split(";") ?? []) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
+    return readSessionToken(request, "user");
   }
 
   private parse<T>(operation: () => T): T {

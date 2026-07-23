@@ -19,9 +19,9 @@ import {
 } from "@yingchuan/model-gateway";
 import { ZodError } from "zod";
 
-import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
 import type { AuthenticatedSession } from "../auth/auth.types.js";
+import { sessionTokenForRequest } from "../auth/session-cookie.js";
 import { MODEL_GATEWAY_SERVICE } from "./model.constants.js";
 import {
   credentialSchema,
@@ -193,12 +193,7 @@ export class ModelController {
   }
 
   private sessionToken(request: Request): string | undefined {
-    for (const item of request.header("cookie")?.split(";") ?? []) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
+    return sessionTokenForRequest(request);
   }
 
   private parse<T>(operation: () => T): T {

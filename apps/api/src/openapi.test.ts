@@ -20,7 +20,7 @@ describe("OpenAPI contract", () => {
 
   afterAll(async () => app.close());
 
-  it("generates the implemented v1 routes and session security scheme", () => {
+  it("generates the implemented v1 routes and audience-specific session security schemes", () => {
     const document = createOpenApiDocument(app);
     expect(Object.keys(document.paths).length).toBeGreaterThanOrEqual(24);
     expect(document.paths).toHaveProperty("/api/v1/auth/session");
@@ -34,7 +34,10 @@ describe("OpenAPI contract", () => {
       "/api/v1/admin/model-configs/{modelConfigId}/probe",
     );
     expect(document.components?.securitySchemes).toHaveProperty(
-      "yingchuan_session",
+      "yingchuan_user_session",
+    );
+    expect(document.components?.securitySchemes).toHaveProperty(
+      "yingchuan_admin_session",
     );
   });
 });

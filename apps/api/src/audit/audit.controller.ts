@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 
-import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
+import { sessionToken as readSessionToken } from "../auth/session-cookie.js";
 import { AuditService } from "./audit.service.js";
 
 @Controller("admin/audit-logs")
@@ -45,11 +45,6 @@ export class AuditController {
   }
 
   private sessionToken(request: Request): string | undefined {
-    for (const item of request.header("cookie")?.split(";") ?? []) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
+    return readSessionToken(request, "admin");
   }
 }

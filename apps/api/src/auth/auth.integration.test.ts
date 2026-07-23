@@ -105,7 +105,7 @@ describe("email code authentication", () => {
     ).expect(201);
 
     const setCookie = verification.headers["set-cookie"] as unknown as string[];
-    expect(setCookie[0]).toContain("yc_session=");
+    expect(setCookie[0]).toContain("yc_user_session=");
     expect(setCookie[0]).toContain("HttpOnly");
     expect(setCookie[0]).toContain("Secure");
     expect(setCookie[0]).toContain("SameSite=Lax");
@@ -126,7 +126,7 @@ describe("email code authentication", () => {
       .get("/api/v1/admin/audit-logs")
       .set("Cookie", cookie)
       .set("Origin", userOrigin)
-      .expect(403);
+      .expect(401);
 
     await request(app.getHttpServer())
       .post("/api/v1/auth/logout")
@@ -220,6 +220,34 @@ describe("email code authentication", () => {
         projects: expect.any(Number),
       }),
     );
+
+    await requestCode(email, "user", userOrigin).expect(202);
+    const userLoginCode = emailSender.messages.get(`${email}:login`)!.code;
+    const userVerification = await verifyCode(
+      email,
+      userLoginCode,
+      "user",
+      userOrigin,
+    ).expect(201);
+    const userSetCookie = userVerification.headers[
+      "set-cookie"
+    ] as unknown as string[];
+    expect(cookie).toContain("yc_admin_session=");
+    expect(userSetCookie[0]).toContain("yc_user_session=");
+    const userCookie = userSetCookie[0]!.split(";")[0]!;
+    const combinedCookies = `${cookie}; ${userCookie}`;
+    await request(app.getHttpServer())
+      .get("/api/v1/auth/session")
+      .set("Cookie", combinedCookies)
+      .set("Origin", userOrigin)
+      .expect(200)
+      .expect(({ body }) => expect(body.data.audience).toBe("user"));
+    await request(app.getHttpServer())
+      .get("/api/v1/auth/session")
+      .set("Cookie", combinedCookies)
+      .set("Origin", adminOrigin)
+      .expect(200)
+      .expect(({ body }) => expect(body.data.audience).toBe("admin"));
 
     const adminUser = await database.user.findUniqueOrThrow({
       where: { emailNormalized: email },

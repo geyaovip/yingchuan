@@ -18,9 +18,9 @@ import type {
 } from "@yingchuan/notifications";
 import type { Request } from "express";
 import { z } from "zod";
-import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
 import type { AuthenticatedSession } from "../auth/auth.types.js";
+import { sessionTokenForRequest } from "../auth/session-cookie.js";
 import {
   ALERT_SERVICE,
   DAILY_REPORT_SERVICE,
@@ -149,12 +149,7 @@ export class NotificationController {
     return auth;
   }
   private token(request: Request) {
-    for (const item of request.header("cookie")?.split(";") ?? []) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
+    return sessionTokenForRequest(request);
   }
   private async perform<T>(operation: () => Promise<T>) {
     try {

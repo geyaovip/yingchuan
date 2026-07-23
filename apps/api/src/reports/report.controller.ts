@@ -11,8 +11,8 @@ import {
 import type { ReportApplicationService } from "@yingchuan/reports";
 import type { Request } from "express";
 
-import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
+import { sessionToken as readSessionToken } from "../auth/session-cookie.js";
 import { REPORT_SERVICE } from "./report.constants.js";
 
 @Controller("projects/:projectId/reports")
@@ -79,12 +79,7 @@ export class ReportController {
     return auth;
   }
   private sessionToken(request: Request) {
-    for (const item of request.header("cookie")?.split(";") ?? []) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
+    return readSessionToken(request, "user");
   }
   private async perform<T>(operation: () => Promise<T>) {
     try {

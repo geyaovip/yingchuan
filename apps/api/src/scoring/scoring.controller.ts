@@ -14,8 +14,8 @@ import type { ScoringApplicationService } from "@yingchuan/scoring";
 import type { Request } from "express";
 import { z, ZodError } from "zod";
 
-import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
+import { sessionToken as readSessionToken } from "../auth/session-cookie.js";
 import { SCORING_SERVICE } from "./scoring.constants.js";
 
 const competitorSchema = z.object({
@@ -96,12 +96,7 @@ export class ScoringController {
   }
 
   private sessionToken(request: Request): string | undefined {
-    for (const item of request.header("cookie")?.split(";") ?? []) {
-      const [name, ...value] = item.trim().split("=");
-      if (name === SESSION_COOKIE_NAME)
-        return decodeURIComponent(value.join("="));
-    }
-    return undefined;
+    return readSessionToken(request, "user");
   }
 
   private async perform<T>(operation: () => Promise<T>) {
