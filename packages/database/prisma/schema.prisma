@@ -134,6 +134,18 @@ enum NotificationDeliveryStatus {
   failed
 }
 
+enum AlertStatus {
+  active
+  resolved
+}
+
+enum AlertEvaluationRunStatus {
+  running
+  completed
+  failed
+  dead_letter
+}
+
 enum OutboxStatus {
   pending
   published
@@ -319,6 +331,7 @@ model User {
   analysisJobsCreated   AnalysisJob[]            @relation("AnalysisJobCreator")
   analysisJobsCancelled AnalysisJob[]            @relation("AnalysisJobCanceller")
   platformAssignments   PlatformRoleAssignment[]
+  alertsAcknowledged    AlertEvent[]             @relation("AlertAcknowledgement")
 
   @@map("users")
 }
@@ -764,20 +777,20 @@ model SourceFetchJob {
 }
 
 model ContentSnapshot {
-  id                 String   @id @db.Uuid
-  sourceId           String   @map("source_id") @db.Uuid
-  previousSnapshotId String?  @map("previous_snapshot_id") @db.Uuid
-  contentHash        String   @map("content_hash") @db.Char(64)
-  mimeType           String   @map("mime_type") @db.VarChar(100)
-  httpStatus         Int      @map("http_status")
-  finalUrl           String   @map("final_url") @db.VarChar(2048)
-  extractedText      String?  @map("extracted_text") @db.Text
-  textStoragePath    String?  @map("text_storage_path") @db.VarChar(1024)
-  structuredData     Json?    @map("structured_data")
-  summary            String?  @db.Text
-  diffSummary        Json?    @map("diff_summary")
-  fetchedAt          DateTime @map("fetched_at") @db.Timestamptz(3)
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                 String    @id @db.Uuid
+  sourceId           String    @map("source_id") @db.Uuid
+  previousSnapshotId String?   @map("previous_snapshot_id") @db.Uuid
+  contentHash        String    @map("content_hash") @db.Char(64)
+  mimeType           String    @map("mime_type") @db.VarChar(100)
+  httpStatus         Int       @map("http_status")
+  finalUrl           String    @map("final_url") @db.VarChar(2048)
+  extractedText      String?   @map("extracted_text") @db.Text
+  textStoragePath    String?   @map("text_storage_path") @db.VarChar(1024)
+  structuredData     Json?     @map("structured_data")
+  summary            String?   @db.Text
+  diffSummary        Json?     @map("diff_summary")
+  fetchedAt          DateTime  @map("fetched_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   contentPurgedAt    DateTime? @map("content_purged_at") @db.Timestamptz(3)
 
   source           KnowledgeSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
@@ -1015,15 +1028,15 @@ model RunAttempt {
 }
 
 model ModelRunResult {
-  id           String   @id @db.Uuid
-  modelRunId   String   @unique @map("model_run_id") @db.Uuid
-  responseText String   @map("response_text") @db.Text
-  citations    Json
-  inputTokens  Int      @map("input_tokens")
-  outputTokens Int      @map("output_tokens")
-  costMicros   BigInt   @map("cost_micros")
-  responseHash String   @map("response_hash") @db.Char(64)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id               String    @id @db.Uuid
+  modelRunId       String    @unique @map("model_run_id") @db.Uuid
+  responseText     String    @map("response_text") @db.Text
+  citations        Json
+  inputTokens      Int       @map("input_tokens")
+  outputTokens     Int       @map("output_tokens")
+  costMicros       BigInt    @map("cost_micros")
+  responseHash     String    @map("response_hash") @db.Char(64)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   responsePurgedAt DateTime? @map("response_purged_at") @db.Timestamptz(3)
 
   modelRun ModelRun @relation(fields: [modelRunId], references: [id], onDelete: Cascade)
@@ -1231,27 +1244,27 @@ model ReportViewEvent {
 }
 
 model AgentRun {
-  id               String         @id @db.Uuid
-  userId           String         @map("user_id") @db.Uuid
-  workspaceId      String?        @map("workspace_id") @db.Uuid
-  projectId        String?        @map("project_id") @db.Uuid
-  status           AgentRunStatus @default(queued)
-  runtimeVersion   String         @map("runtime_version") @db.VarChar(50)
-  question         String         @db.VarChar(2000)
-  contextSnapshot  Json           @map("context_snapshot")
-  allowedSkills    Json           @map("allowed_skills")
-  tokenBudget      Int            @map("token_budget")
-  costBudgetMicros BigInt         @map("cost_budget_micros")
-  inputTokens      Int            @default(0) @map("input_tokens")
-  outputTokens     Int            @default(0) @map("output_tokens")
-  costMicros       BigInt         @default(0) @map("cost_micros")
-  answer           String?        @db.Text
-  citations        Json
-  errorCode        String?        @map("error_code") @db.VarChar(100)
-  startedAt        DateTime?      @map("started_at") @db.Timestamptz(3)
-  completedAt      DateTime?      @map("completed_at") @db.Timestamptz(3)
-  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  conversationPurgedAt DateTime?  @map("conversation_purged_at") @db.Timestamptz(3)
+  id                   String         @id @db.Uuid
+  userId               String         @map("user_id") @db.Uuid
+  workspaceId          String?        @map("workspace_id") @db.Uuid
+  projectId            String?        @map("project_id") @db.Uuid
+  status               AgentRunStatus @default(queued)
+  runtimeVersion       String         @map("runtime_version") @db.VarChar(50)
+  question             String         @db.VarChar(2000)
+  contextSnapshot      Json           @map("context_snapshot")
+  allowedSkills        Json           @map("allowed_skills")
+  tokenBudget          Int            @map("token_budget")
+  costBudgetMicros     BigInt         @map("cost_budget_micros")
+  inputTokens          Int            @default(0) @map("input_tokens")
+  outputTokens         Int            @default(0) @map("output_tokens")
+  costMicros           BigInt         @default(0) @map("cost_micros")
+  answer               String?        @db.Text
+  citations            Json
+  errorCode            String?        @map("error_code") @db.VarChar(100)
+  startedAt            DateTime?      @map("started_at") @db.Timestamptz(3)
+  completedAt          DateTime?      @map("completed_at") @db.Timestamptz(3)
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  conversationPurgedAt DateTime?      @map("conversation_purged_at") @db.Timestamptz(3)
 
   actions AgentAction[]
 
@@ -1348,6 +1361,7 @@ model NotificationDelivery {
   maxAttempts       Int                        @default(3) @map("max_attempts")
   providerMessageId String?                    @map("provider_message_id") @db.VarChar(150)
   errorCode         String?                    @map("error_code") @db.VarChar(100)
+  nextAttemptAt     DateTime?                  @map("next_attempt_at") @db.Timestamptz(3)
   sentAt            DateTime?                  @map("sent_at") @db.Timestamptz(3)
   createdAt         DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -1358,6 +1372,56 @@ model NotificationDelivery {
   @@index([channelConfigId, createdAt])
   @@index([status, createdAt])
   @@map("notification_deliveries")
+}
+
+model AlertEvent {
+  id               String      @id @db.Uuid
+  ruleCode         String      @map("rule_code") @db.VarChar(80)
+  fingerprint      String      @db.VarChar(200)
+  status           AlertStatus @default(active)
+  severity         String      @db.VarChar(20)
+  title            String      @db.VarChar(200)
+  body             String      @db.VarChar(1000)
+  metricValue      Decimal     @map("metric_value") @db.Decimal(20, 6)
+  thresholdValue   Decimal     @map("threshold_value") @db.Decimal(20, 6)
+  unit             String      @db.VarChar(30)
+  context          Json
+  occurrenceCount  Int         @default(1) @map("occurrence_count")
+  firstTriggeredAt DateTime    @map("first_triggered_at") @db.Timestamptz(3)
+  lastTriggeredAt  DateTime    @map("last_triggered_at") @db.Timestamptz(3)
+  lastNotifiedAt   DateTime?   @map("last_notified_at") @db.Timestamptz(3)
+  acknowledgedAt   DateTime?   @map("acknowledged_at") @db.Timestamptz(3)
+  acknowledgedById String?     @map("acknowledged_by_id") @db.Uuid
+  resolvedAt       DateTime?   @map("resolved_at") @db.Timestamptz(3)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  acknowledgedBy User? @relation("AlertAcknowledgement", fields: [acknowledgedById], references: [id], onDelete: Restrict)
+
+  @@index([status, updatedAt])
+  @@index([ruleCode, firstTriggeredAt])
+  @@map("alert_events")
+}
+
+model AlertEvaluationRun {
+  id                 String                   @id @db.Uuid
+  idempotencyKey     String                   @unique @map("idempotency_key") @db.VarChar(200)
+  status             AlertEvaluationRunStatus @default(running)
+  referenceTime      DateTime                 @map("reference_time") @db.Timestamptz(3)
+  attempts           Int                      @default(1)
+  maxAttempts        Int                      @default(3) @map("max_attempts")
+  evaluatedRuleCount Int                      @default(0) @map("evaluated_rule_count")
+  openedCount        Int                      @default(0) @map("opened_count")
+  updatedCount       Int                      @default(0) @map("updated_count")
+  resolvedCount      Int                      @default(0) @map("resolved_count")
+  errorCode          String?                  @map("error_code") @db.VarChar(100)
+  startedAt          DateTime                 @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt        DateTime?                @map("completed_at") @db.Timestamptz(3)
+  createdAt          DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, updatedAt])
+  @@map("alert_evaluation_runs")
 }
 
 model LegalHold {

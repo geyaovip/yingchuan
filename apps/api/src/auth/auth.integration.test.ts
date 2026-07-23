@@ -273,6 +273,12 @@ describe("email code authentication", () => {
       .set("Cookie", cookie)
       .set("Origin", adminOrigin)
       .expect(200);
+    await request(app.getHttpServer())
+      .get("/api/v1/admin/alerts")
+      .set("Cookie", cookie)
+      .set("Origin", adminOrigin)
+      .expect(200)
+      .expect(({ body }) => expect(body.data).toEqual(expect.any(Array)));
 
     const agent = await request(app.getHttpServer())
       .post("/api/v1/admin/agent-runs")

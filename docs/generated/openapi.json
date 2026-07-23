@@ -843,6 +843,30 @@
         "tags": ["Notification"]
       }
     },
+    "/api/v1/admin/alerts": {
+      "get": {
+        "operationId": "NotificationController_alertList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
+    "/api/v1/admin/alerts/{alertId}/acknowledge": {
+      "patch": {
+        "operationId": "NotificationController_acknowledgeAlert",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Notification"]
+      }
+    },
     "/api/v1/notifications/{notificationId}/read": {
       "patch": {
         "operationId": "NotificationController_read",

@@ -11,24 +11,51 @@ import {
   Post,
   Req,
 } from "@nestjs/common";
-import type { NotificationApplicationService } from "@yingchuan/notifications";
+import type {
+  AlertApplicationService,
+  NotificationApplicationService,
+} from "@yingchuan/notifications";
 import type { Request } from "express";
 import { z } from "zod";
 import { SESSION_COOKIE_NAME } from "../auth/auth.constants.js";
 import { AuthService } from "../auth/auth.service.js";
 import type { AuthenticatedSession } from "../auth/auth.types.js";
-import { NOTIFICATION_SERVICE } from "./notification.constants.js";
+import {
+  ALERT_SERVICE,
+  NOTIFICATION_SERVICE,
+} from "./notification.constants.js";
 
 @Controller()
 export class NotificationController {
   constructor(
     @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(ALERT_SERVICE)
+    private readonly alerts: AlertApplicationService,
     @Inject(NOTIFICATION_SERVICE)
     private readonly notifications: NotificationApplicationService,
   ) {}
   @Get("notifications") async list(@Req() request: Request) {
     const auth = await this.auth(request);
     return { data: await this.notifications.list(auth.user.id) };
+  }
+  @Get("admin/alerts") async alertList(@Req() request: Request) {
+    const auth = await this.auth(request);
+    return {
+      data: await this.perform(() => this.alerts.list(this.actor(auth))),
+    };
+  }
+  @Patch("admin/alerts/:alertId/acknowledge") async acknowledgeAlert(
+    @Param("alertId") alertId: string,
+    @Headers("x-csrf-token") csrf: string | undefined,
+    @Req() request: Request,
+  ) {
+    const auth = await this.auth(request);
+    this.authService.assertCsrf(auth, csrf, request.header("origin") ?? "");
+    return {
+      data: await this.perform(() =>
+        this.alerts.acknowledge(alertId, this.actor(auth)),
+      ),
+    };
   }
   @Patch("notifications/:notificationId/read") async read(
     @Param("notificationId") id: string,
@@ -126,6 +153,8 @@ export class NotificationController {
       const code = [
         "FORBIDDEN",
         "AUTH_STEP_UP_REQUIRED",
+        "ALERT_NOT_ACTIVE",
+        "ALERT_NOT_FOUND",
         "RESOURCE_NOT_FOUND",
         "IDEMPOTENCY_KEY_REQUIRED",
         "RATE_LIMITED",
@@ -139,7 +168,7 @@ export class NotificationController {
       const status =
         code === "FORBIDDEN"
           ? 403
-          : code === "RESOURCE_NOT_FOUND"
+          : code === "RESOURCE_NOT_FOUND" || code === "ALERT_NOT_FOUND"
             ? 404
             : code === "RATE_LIMITED"
               ? 429

@@ -19,6 +19,7 @@ import { getRuntimeValue } from "@yingchuan/runtime-config";
 import { ScoringApplicationService } from "@yingchuan/scoring";
 import { ReportApplicationService } from "@yingchuan/reports";
 import {
+  AlertApplicationService,
   NotificationApplicationService,
   TelegramHttpAdapter,
 } from "@yingchuan/notifications";
@@ -49,6 +50,7 @@ export async function writeWorkerHeartbeat(
 @Injectable()
 export class WorkerService implements OnModuleInit, OnApplicationShutdown {
   private database?: PrismaClient;
+  private alertScheduler?: NodeJS.Timeout;
   private dispatcher?: NodeJS.Timeout;
   private lifecycleScheduler?: NodeJS.Timeout;
   private queue?: BullMqOutboxQueue;
@@ -86,17 +88,24 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
     const analysis = new AnalysisApplicationService(this.database, gateway);
     const scoring = new ScoringApplicationService(this.database);
     const reports = new ReportApplicationService(this.database);
+    const notificationSecretBox = new SecretBox(
+      getRuntimeValue("NOTIFICATION_CREDENTIAL_MASTER_KEY", {
+        fallback: "yingchuan_local_notification_key_change_32",
+      }),
+      getRuntimeValue("NOTIFICATION_CREDENTIAL_KEY_VERSION", {
+        fallback: "local-v1",
+      }),
+    );
+    const telegram = new TelegramHttpAdapter();
     const notifications = new NotificationApplicationService(
       this.database,
-      new SecretBox(
-        getRuntimeValue("NOTIFICATION_CREDENTIAL_MASTER_KEY", {
-          fallback: "yingchuan_local_notification_key_change_32",
-        }),
-        getRuntimeValue("NOTIFICATION_CREDENTIAL_KEY_VERSION", {
-          fallback: "local-v1",
-        }),
-      ),
-      new TelegramHttpAdapter(),
+      notificationSecretBox,
+      telegram,
+    );
+    const alerts = new AlertApplicationService(
+      this.database,
+      notificationSecretBox,
+      telegram,
     );
     const lifecycle = new DataLifecycleApplicationService(
       this.database,
@@ -192,12 +201,32 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
     this.lifecycleScheduler = setInterval(runLifecycle, 15 * 60 * 1_000);
     this.lifecycleScheduler.unref();
     runLifecycle();
+    const runAlerts = () =>
+      void alerts
+        .runScheduled()
+        .then(() => alerts.processDueDeliveries())
+        .catch((error: unknown) => {
+          logger.error(
+            {
+              errorCode:
+                error instanceof Error
+                  ? error.message
+                  : "ALERT_SCHEDULER_FAILED",
+              errorType: error instanceof Error ? error.name : "UnknownError",
+            },
+            "alert_scheduler_failed",
+          );
+        });
+    this.alertScheduler = setInterval(runAlerts, 60_000);
+    this.alertScheduler.unref();
+    runAlerts();
     void this.dispatchOutbox();
     logger.info({ result: "ready" }, "worker_context_ready");
   }
 
   async onApplicationShutdown(): Promise<void> {
     if (this.dispatcher) clearInterval(this.dispatcher);
+    if (this.alertScheduler) clearInterval(this.alertScheduler);
     if (this.lifecycleScheduler) clearInterval(this.lifecycleScheduler);
     await this.consumer?.close();
     await this.queue?.close();

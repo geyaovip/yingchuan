@@ -1,1 +1,2 @@
+export const ALERT_SERVICE = Symbol("ALERT_SERVICE");
 export const NOTIFICATION_SERVICE = Symbol("NOTIFICATION_SERVICE");
