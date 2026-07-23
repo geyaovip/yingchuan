@@ -37,6 +37,7 @@
 - **E0-S7 部署基线**：Web/Admin Vite SPA 构建到 Cloudflare Pages，配置 `app.chatway.chat`/`admin.chatway.chat` 和深层路由；`api.chatway.chat` 用 DNS-only 记录指向共享云服务器 Caddy/Let's Encrypt，部署独立 `yingchuan` Compose project、持久卷、备份目录和 GitHub Actions 环境。
 - **E0-S8 生产加固**：盘点共享宿主端口/资源，配置 TLS、防火墙、非 root 容器、独立 Docker network/DB 账户/Redis 隔离、resource limits、Secret 注入、备份恢复演练和最小运维账户。
 - **E0-S9 数据生命周期**：按 D-023 实现到期删除、应用与私有文件一致性、审计和法律保留跳过。
+- **E0-S10 产品官网**：在 `chatway.chat` 发布独立 Vite 静态官网，介绍产品能力和分析流程，提供前往 `app.chatway.chat` 的用户入口，并在 320/390/768/1024/1440px 保持可用。
 
 验收：全新机器按 README 可启动；CI 可阻止类型、迁移和测试错误；前端产物不包含服务端代码/密钥；staging 可分别部署 Pages 与云服务器后端。
 

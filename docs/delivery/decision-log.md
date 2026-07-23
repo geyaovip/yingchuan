@@ -51,6 +51,7 @@
 | D-045 | accepted   | 2026-07-22 | 后端与其他项目共用现有云服务器                                              | 映川使用独立 Compose project、网络、容器、DB 账户/库、Redis 隔离和持久卷；可共用宿主 Caddy/可观测基础设施，但必须设资源上限                                 |
 | D-046 | accepted   | 2026-07-22 | Resend 发件域名使用 `mail.chatway.chat`                                     | 在 Resend 后台创建并按实时提示向 Cloudflare DNS 添加验证记录；默认发件人为 `映川 <login@mail.chatway.chat>`                                                 |
 | D-047 | accepted   | 2026-07-22 | P0 管理端只允许 `geyaovip@163.com` 登录                                     | 邮箱规范化后精确匹配 `ADMIN_ALLOWED_EMAILS`，初始化为 `super_admin`；其他邮箱不获得管理 Session/路由权限。该限制仅针对管理端，用户端邮箱验证码登录保持      |
+| D-048 | accepted   | 2026-07-23 | 根域 `chatway.chat` 部署独立响应式产品官网                                  | 使用 Vite + React + TypeScript 静态站点和 Cloudflare Pages；官网只展示产品信息并跳转 `app.chatway.chat`，不调用生产 API、不建立认证 Session                 |
 
 ## 新增决策模板
 

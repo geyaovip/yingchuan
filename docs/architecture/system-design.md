@@ -6,25 +6,26 @@
 
 ## 2. 建议技术基线
 
-| 层            | 选择                                          | 说明                                                                                   |
-| ------------- | --------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 用户端/管理端 | Vite + React + TypeScript                     | 两个 SPA，共享 UI、类型、React Router 和鉴权客户端                                     |
-| API           | NestJS                                        | REST API、应用服务、权限与审计入口                                                     |
-| Worker        | NestJS application context                    | 复用应用模块，不暴露公网 HTTP                                                          |
-| 数据          | PostgreSQL + Prisma                           | 事务、迁移、关系约束                                                                   |
-| 队列/缓存     | Redis + BullMQ                                | 长任务、重试、延迟任务、并发限制                                                       |
-| 文件          | 云服务器私有文件目录                          | P0 在线报告以数据库为主，必要原始文件经 File Service 授权访问                          |
-| Agent         | OpenClaw `v2026.7.1` 经 Agent Gateway         | 官方容器固定版本/摘要，仅调用注册 Skill                                                |
-| 监控          | OpenTelemetry + Prometheus + Loki + Grafana   | 先在云服务器自托管，Trace/Metric/Log 使用统一关联 ID                                   |
-| 前端部署      | Cloudflare Pages 静态 SPA                     | Web/Admin 使用 Vite 构建，不启用 Pages Functions/Workers                               |
-| API/Worker    | 与其他项目共用的现有云服务器 + Docker Compose | 映川使用独立 Compose project、容器、网络、数据库账户和持久卷；只共用宿主资源和反向代理 |
-| 文件与备份    | 云服务器持久卷/独立数据目录                   | 不使用 R2；本机恢复可用，整机灾难恢复待增加异地副本                                    |
-| 源码与 CI/CD  | GitHub + GitHub Actions                       | PR 检查；Pages 使用 Git 集成，后端由 Actions 部署到云服务器                            |
+| 层             | 选择                                          | 说明                                                                                   |
+| -------------- | --------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 官网/用户/管理 | Vite + React + TypeScript                     | 一个静态产品官网、两个 SPA；用户/管理端共享 UI、类型、React Router 和鉴权客户端        |
+| API            | NestJS                                        | REST API、应用服务、权限与审计入口                                                     |
+| Worker         | NestJS application context                    | 复用应用模块，不暴露公网 HTTP                                                          |
+| 数据           | PostgreSQL + Prisma                           | 事务、迁移、关系约束                                                                   |
+| 队列/缓存      | Redis + BullMQ                                | 长任务、重试、延迟任务、并发限制                                                       |
+| 文件           | 云服务器私有文件目录                          | P0 在线报告以数据库为主，必要原始文件经 File Service 授权访问                          |
+| Agent          | OpenClaw `v2026.7.1` 经 Agent Gateway         | 官方容器固定版本/摘要，仅调用注册 Skill                                                |
+| 监控           | OpenTelemetry + Prometheus + Loki + Grafana   | 先在云服务器自托管，Trace/Metric/Log 使用统一关联 ID                                   |
+| 前端部署       | Cloudflare Pages 静态站点                     | Website/Web/Admin 使用 Vite 构建，不启用 Pages Functions/Workers                       |
+| API/Worker     | 与其他项目共用的现有云服务器 + Docker Compose | 映川使用独立 Compose project、容器、网络、数据库账户和持久卷；只共用宿主资源和反向代理 |
+| 文件与备份     | 云服务器持久卷/独立数据目录                   | 不使用 R2；本机恢复可用，整机灾难恢复待增加异地副本                                    |
+| 源码与 CI/CD   | GitHub + GitHub Actions                       | PR 检查；Pages 使用 Git 集成，后端由 Actions 部署到云服务器                            |
 
 ## 3. 仓库目标结构
 
 ```text
-apps/
+  apps/
+  website/             # 根域产品官网
   web/                 # 用户端
   admin/               # 管理端
   api/                 # NestJS HTTP 入口
@@ -149,8 +150,8 @@ Cloudflare Pages
     └── 独立持久卷（私有文件、数据库备份、WAL、日志）
 ```
 
-- Web/Admin 使用 Vite 构建 `dist/`，通过 Cloudflare Pages GitHub 集成自动发布。两个站点使用 SPA 回退路由，深层 URL 刷新必须回到 `index.html`；不使用 Pages Functions/Workers，业务能力全部来自云服务器 API。
-- 前端通过 `VITE_API_BASE_URL` 访问 `https://api.chatway.chat/api/v1`。生产域名固定为 `https://app.chatway.chat`、`https://admin.chatway.chat`、`https://api.chatway.chat`；API CORS 仅允许前两个精确 Origin，并允许 credentialed requests。
+- Website/Web/Admin 使用 Vite 构建 `dist/`，通过 Cloudflare Pages 发布。官网是根域静态产品页，只跳转用户端；Web/Admin 使用 SPA 回退路由，深层 URL 刷新必须回到 `index.html`。三个站点均不使用 Pages Functions/Workers。
+- Web/Admin 通过 `VITE_API_BASE_URL` 访问 `https://api.chatway.chat/api/v1`。生产域名固定为 `https://chatway.chat`、`https://app.chatway.chat`、`https://admin.chatway.chat`、`https://api.chatway.chat`；官网不访问 API，API CORS 仅允许用户端和管理端两个精确 Origin，并允许 credentialed requests。
 - `*.pages.dev` 和 PR preview 不得连接生产 API。staging 使用 `staging-app.chatway.chat`、`staging-admin.chatway.chat`、`staging-api.chatway.chat` 与独立环境，不为动态 preview Origin 开放带 Cookie 的通配 CORS。
 - `api.chatway.chat` 初期只使用 Cloudflare DNS 解析到云服务器（DNS only），TLS 由 Caddy/Let's Encrypt 在服务器终止；不使用 Cloudflare Worker/Pages Function 代理 API。
 - 当前宿主没有共享 Caddy，因此映川以固定摘要的独立 Caddy 容器占用经盘点为空闲的 80/443；API 只通过内部 `backend` 网络接受 Caddy 转发，发布流程在容器内检查 ready 并从公网复核 HTTPS。PostgreSQL、Redis、OpenClaw 控制面不暴露公网，Cloudflare 不承载 API、队列、数据库、文件或 Agent。

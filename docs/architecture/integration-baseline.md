@@ -70,12 +70,12 @@ ModelRun 保存最终地域快照和注入方式，使不同模型在同一条�
 
 ## 5. Cloudflare Pages 与 GitHub
 
-- Cloudflare 只承载 Web/Admin 两个静态站点；不使用 Workers、Pages Functions、R2、KV、D1、Queues 或其他服务端能力。
-- 两个 Vite + React SPA 构建目录为 `dist/`，使用客户端路由和 Pages SPA fallback，验证 `/projects/:id` 等深层路由直接访问/刷新。
-- Pages 必须从仓库根目录执行 `npm run build:web` / `npm run build:admin`，输出目录分别为 `apps/web/dist` / `apps/admin/dist`。这两个入口会先构建 workspace 依赖，不能直接运行单个应用 workspace 的 `build`。
+- Cloudflare 只承载 Website/Web/Admin 三个静态站点；不使用 Workers、Pages Functions、R2、KV、D1、Queues 或其他服务端能力。
+- 官网是单页静态产品介绍；两个 Vite + React SPA 使用客户端路由和 Pages SPA fallback，验证 `/projects/:id` 等深层路由直接访问/刷新。
+- Pages 必须从仓库根目录执行 `npm run build:website` / `npm run build:web` / `npm run build:admin`，输出目录分别为 `apps/website/dist` / `apps/web/dist` / `apps/admin/dist`。这些入口会先构建 workspace 依赖，不能直接运行单个应用 workspace 的 `build`。
 - Pages 通过 GitHub 集成构建并提供预览部署；GitHub Actions 继续负责 lint、typecheck、test 和静态构建检查。
 - 所有动态数据通过浏览器请求云服务器 API。前端只能包含公开 API 基址，不得嵌入 Resend、模型、Telegram、数据库或部署密钥。
-- 生产自定义域名为 `app.chatway.chat`、`admin.chatway.chat`，后端为 `api.chatway.chat`。端到端测试必须使用自定义域名验证 Session Cookie、CORS 和 CSRF。`api` 子域初期使用 Cloudflare DNS-only 记录直指云服务器，TLS 在 Caddy/Let's Encrypt 终止。
+- 生产官网为 `chatway.chat`，用户端为 `app.chatway.chat`，管理端为 `admin.chatway.chat`，后端为 `api.chatway.chat`。端到端测试必须使用自定义域名验证官网跳转以及用户/管理端 Session Cookie、CORS 和 CSRF。`api` 子域初期使用 Cloudflare DNS-only 记录直指云服务器，TLS 在 Caddy/Let's Encrypt 终止。
 - staging 固定为 `staging-app.chatway.chat`、`staging-admin.chatway.chat`、`staging-api.chatway.chat` 并使用独立数据/密钥。只有这两个固定前端 Origin 可建立 staging 认证会话；动态 `*.pages.dev`/PR preview 只用于静态视觉验收，不连 staging/生产 API。
 
 官方资料：

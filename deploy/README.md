@@ -2,14 +2,15 @@
 
 ## Cloudflare Pages
 
-创建两个 Pages 项目并连接同一 GitHub 仓库。均使用仓库根目录作为 Root directory，避免 npm workspace 依赖缺失。
+创建三个 Pages 项目并连接同一 GitHub 仓库。均使用仓库根目录作为 Root directory，避免 npm workspace 依赖缺失。
 
-| 项目              | 构建命令              | 输出目录          | 生产域名             |
-| ----------------- | --------------------- | ----------------- | -------------------- |
-| `yingchuan-web`   | `npm run build:web`   | `apps/web/dist`   | `app.chatway.chat`   |
-| `yingchuan-admin` | `npm run build:admin` | `apps/admin/dist` | `admin.chatway.chat` |
+| 项目                | 构建命令                | 输出目录            | 生产域名             |
+| ------------------- | ----------------------- | ------------------- | -------------------- |
+| `yingchuan-website` | `npm run build:website` | `apps/website/dist` | `chatway.chat`       |
+| `yingchuan-web`     | `npm run build:web`     | `apps/web/dist`     | `app.chatway.chat`   |
+| `yingchuan-admin`   | `npm run build:admin`   | `apps/admin/dist`   | `admin.chatway.chat` |
 
-两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL=https://api.chatway.chat`；客户端会自行追加 `/api/v1`。Preview 环境只能使用独立 staging API；未提供 staging 时留空，禁止连接生产 API。Web watch path 使用 `apps/web/*, packages/ui/*, packages/shared-types/*, package.json, package-lock.json`；Admin 对应替换为 `apps/admin/*`。
+Web/Admin 两个项目生产环境均设置公开构建变量 `VITE_API_BASE_URL=https://api.chatway.chat`；客户端会自行追加 `/api/v1`。Website 不设置 API 变量，只跳转用户端。Preview 环境只能使用独立 staging API；未提供 staging 时留空，禁止连接生产 API。Website watch path 使用 `apps/website/*, package.json, package-lock.json`；Web 使用 `apps/web/*, packages/ui/*, packages/shared-types/*, package.json, package-lock.json`；Admin 对应替换为 `apps/admin/*`。
 
 项目不得包含顶层 `404.html`，由 Pages 的静态 SPA 默认行为处理深层路由。不创建 Functions、Workers、KV、D1 或 R2 绑定。
 

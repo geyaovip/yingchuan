@@ -46,6 +46,7 @@
 | AC-022 | 生产域名与会话         | `app.chatway.chat`/`admin.chatway.chat` 通过 `api.chatway.chat` 完成登录和状态修改，Cookie/CORS/CSRF 自动化测试通过；Pages preview 无法连接生产 API                    |
 | AC-023 | 管理员白名单           | `geyaovip@163.com` 可完成管理登录并具有受审计的 `super_admin`；其他邮箱不收到管理验证码、不得到管理 Session，响应不泄露白名单；用户端登录不受影响                      |
 | AC-024 | 共享服务器隔离         | 映川 Compose project、网络、DB 账户/库、Redis 命名空间、持久卷、备份目录和资源上限与其他项目隔离，重启/部署不影响其他项目                                              |
+| AC-025 | 响应式产品官网         | `chatway.chat` 在 320/390/768/1024/1440px 无页面级横向溢出，核心文案与入口可用；主要入口只跳转 `https://app.chatway.chat`，官网不连接生产 API                          |
 
 ## 4. 关键属性测试
 
