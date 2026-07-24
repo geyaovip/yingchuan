@@ -1,21 +1,66 @@
-import type { CSSProperties } from "react";
+import {
+  ArrowRight,
+  ChartLineUp,
+  CheckCircle,
+  FileText,
+  MagnifyingGlass,
+  Pulse,
+  Quotes,
+  ShieldCheck,
+  Target,
+} from "@phosphor-icons/react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { capabilities, productUrl, workflow } from "./content";
 
-function BrandMark() {
+const modelRows = [
+  {
+    model: "豆包",
+    score: 78,
+    tendency: "高",
+    completeness: 4,
+    confidence: "± 6%",
+  },
+  {
+    model: "Kimi",
+    score: 72,
+    tendency: "中高",
+    completeness: 4,
+    confidence: "± 7%",
+  },
+  {
+    model: "GLM",
+    score: 64,
+    tendency: "中",
+    completeness: 3,
+    confidence: "± 8%",
+  },
+  {
+    model: "DeepSeek",
+    score: 58,
+    tendency: "中",
+    completeness: 3,
+    confidence: "± 9%",
+  },
+] as const;
+
+const workflowIcons: ReactNode[] = [
+  <MagnifyingGlass key="search" />,
+  <Target key="target" />,
+  <Pulse key="pulse" />,
+  <FileText key="report" />,
+];
+
+function Wordmark() {
   return (
-    <span className="brand-mark" aria-hidden="true">
-      <i />
-      <i />
-      <i />
-      <i />
-      <i />
+    <span className="wordmark-text" aria-label="映川">
+      映川
     </span>
   );
 }
 
 function Arrow() {
-  return <span aria-hidden="true">↗</span>;
+  return <ArrowRight aria-hidden="true" />;
 }
 
 export function App() {
@@ -27,13 +72,12 @@ export function App() {
 
       <header className="site-header">
         <a className="wordmark" href="/" aria-label="映川首页">
-          <BrandMark />
-          <span>映川</span>
+          <Wordmark />
         </a>
         <nav aria-label="主导航">
           <a href="#capabilities">产品能力</a>
-          <a href="#workflow">工作方式</a>
-          <a href="#value">核心价值</a>
+          <a href="#workflow">分析路径</a>
+          <a href="#evidence">证据体系</a>
         </nav>
         <a className="header-action" href={productUrl}>
           进入工作台
@@ -44,174 +88,249 @@ export function App() {
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow">
-              <span />
-              AI 品牌可见度分析平台
-            </p>
+            <p className="eyebrow">品牌 AI 可见度 / 实时分析</p>
             <h1 id="hero-title">
-              看见品牌，
+              看见 AI
               <br />
-              如何被 AI 看见
+              如何看见
+              <br />
+              你的品牌
             </h1>
             <p className="hero-intro">
-              映川帮助品牌与本地商家持续检测主流大模型如何理解、提及和推荐自己，
-              用清晰证据找到可见度差距，并把结论变成下一步行动。
+              映川持续检测主流大模型如何理解、提及和推荐你的品牌，
+              用可追溯证据定位认知差距，把每个结论变成可执行的增长动作。
             </p>
             <div className="hero-actions">
               <a className="button button-primary" href={productUrl}>
                 开始品牌检测
                 <Arrow />
               </a>
-              <a className="button button-secondary" href="#workflow">
-                了解工作方式
+              <a className="button button-quiet" href="#workflow">
+                查看分析路径
+                <Arrow />
               </a>
             </div>
-            <p className="hero-note">
-              邮箱验证码登录 · 无需安装 · 桌面与移动端均可使用
-            </p>
+            <ul className="trust-list" aria-label="产品保障">
+              <li>
+                <ShieldCheck aria-hidden="true" />
+                证据可追溯
+              </li>
+              <li>
+                <CheckCircle aria-hidden="true" />
+                结果可复现
+              </li>
+              <li>
+                <ChartLineUp aria-hidden="true" />
+                建议可执行
+              </li>
+            </ul>
           </div>
 
-          <div className="report-preview" aria-label="映川报告界面示意">
-            <div className="preview-topbar">
-              <span className="mini-wordmark">
-                <BrandMark />
-                映川报告
-              </span>
-              <span className="preview-pill">示例视图</span>
-            </div>
-            <div className="preview-heading">
+          <div className="hero-data" aria-label="多模型品牌可见度示例">
+            <div className="data-head">
               <div>
-                <small>品牌可见度概览</small>
-                <strong>让每个结论都有证据</strong>
+                <p>多模型品牌可见度</p>
+                <span>示例数据 · 最近一次检测</span>
               </div>
-              <div className="score-orbit" aria-hidden="true">
-                <span>AI</span>
-              </div>
+              <span className="live-state">
+                <i aria-hidden="true" />
+                ANALYSIS READY
+              </span>
             </div>
-            <div className="preview-grid">
-              <article className="preview-card preview-card-wide">
-                <span className="card-label">跨模型检测</span>
-                <div className="model-lines" aria-hidden="true">
-                  <i style={{ "--line": "84%" } as CSSProperties} />
-                  <i style={{ "--line": "66%" } as CSSProperties} />
-                  <i style={{ "--line": "76%" } as CSSProperties} />
-                  <i style={{ "--line": "52%" } as CSSProperties} />
+
+            <div className="data-labels" aria-hidden="true">
+              <span>模型</span>
+              <span>可见度</span>
+              <span>推荐倾向</span>
+              <span>信息完整度</span>
+              <span>置信区间</span>
+            </div>
+
+            <div className="model-table">
+              {modelRows.map((row) => (
+                <div className="model-row" key={row.model}>
+                  <strong>{row.model}</strong>
+                  <div className="score-cell">
+                    <span>{row.score} / 100</span>
+                    <i
+                      aria-hidden="true"
+                      style={{ "--score": `${row.score}%` } as CSSProperties}
+                    />
+                  </div>
+                  <span>{row.tendency}</span>
+                  <span
+                    className="dot-score"
+                    aria-label={`${row.completeness} / 5`}
+                  >
+                    {[1, 2, 3, 4, 5].map((dot) => (
+                      <i
+                        className={dot <= row.completeness ? "is-on" : ""}
+                        key={dot}
+                        aria-hidden="true"
+                      />
+                    ))}
+                  </span>
+                  <span>{row.confidence}</span>
                 </div>
-                <div className="model-legend">
-                  <span>品牌提及</span>
-                  <span>推荐顺位</span>
-                  <span>事实准确</span>
-                </div>
-              </article>
-              <article className="preview-card">
-                <span className="card-label">证据状态</span>
-                <strong className="preview-metric">可追溯</strong>
-                <small>回答、模型与时间完整记录</small>
-              </article>
-              <article className="preview-card">
-                <span className="card-label">建议状态</span>
-                <strong className="preview-metric">有优先级</strong>
-                <small>从影响与投入两个维度排序</small>
-              </article>
+              ))}
+            </div>
+
+            <div className="trend-panel">
+              <div>
+                <span>整体可见度</span>
+                <strong>68</strong>
+                <small>/ 100</small>
+              </div>
+              <div className="trend-bars" aria-label="近五轮检测持续提升">
+                {[34, 48, 42, 61, 68].map((height, index) => (
+                  <i
+                    key={height}
+                    style={{ "--height": `${height}%` } as CSSProperties}
+                    aria-hidden="true"
+                  >
+                    <span>{`0${index + 1}`}</span>
+                  </i>
+                ))}
+              </div>
+              <p>
+                较上一轮 <strong>↑ 7</strong>
+                <span>样本 80 · 有效回答 74</span>
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="signal-bar" aria-label="产品特点">
-          <span>多模型统一检测</span>
-          <i />
-          <span>证据与置信度优先</span>
-          <i />
-          <span>结果可复现</span>
-          <i />
-          <span>建议可执行</span>
-        </section>
-
-        <section className="section capabilities" id="capabilities">
-          <div className="section-heading">
-            <p className="section-kicker">从认知到行动</p>
-            <h2>不只告诉你分数，更解释为什么</h2>
-            <p>
-              从品牌事实确认开始，到多模型检测、评分与优化建议，
-              每一步都保留上下文和证据。
-            </p>
+        <section className="capability-section" id="capabilities">
+          <div className="section-intro">
+            <p className="section-label">01 / 产品能力</p>
+            <h2>从 AI 认知，走到增长行动</h2>
           </div>
           <div className="capability-grid">
             {capabilities.map((capability) => (
-              <article key={capability.index} className="capability-card">
-                <span className="capability-index">{capability.index}</span>
+              <article key={capability.index}>
+                <span>{capability.index}</span>
                 <h3>{capability.title}</h3>
                 <p>{capability.description}</p>
+                <a href="#evidence">
+                  了解更多
+                  <Arrow />
+                </a>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="section workflow-section" id="workflow">
-          <div className="workflow-copy">
-            <p className="section-kicker">一条清晰的分析路径</p>
-            <h2>从输入品牌，到获得第一份报告</h2>
-            <p>
-              映川把复杂的模型调用和解析过程收进一条可追踪流程，
-              你只需要确认事实、问题与范围。
-            </p>
-            <a className="text-link" href={productUrl}>
-              现在进入工作台
-              <Arrow />
-            </a>
+        <section className="workflow-section" id="workflow">
+          <div className="workflow-heading">
+            <p className="section-label">02 / 分析路径</p>
+            <div>
+              <h2>四步获得第一份品牌 AI 认知报告</h2>
+              <p>复杂的模型调用、解析和证据整理，由映川收进一条透明流程。</p>
+            </div>
           </div>
           <ol className="workflow-list">
             {workflow.map(([title, description], index) => (
               <li key={title}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
-                </div>
+                <span className="workflow-index">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="workflow-icon" aria-hidden="true">
+                  {workflowIcons[index]}
+                </span>
+                <h3>{title}</h3>
+                <p>{description}</p>
               </li>
             ))}
           </ol>
         </section>
 
-        <section className="section value-section" id="value">
-          <div className="value-panel">
-            <div className="value-statement">
-              <p className="section-kicker">为真实决策设计</p>
-              <h2>先展示证据，再给结论</h2>
+        <section className="evidence-section" id="evidence">
+          <div className="evidence-copy">
+            <p className="section-label">03 / 证据体系 · 示例数据</p>
+            <h2>先展示证据，再给结论</h2>
+            <p>
+              每次检测都保留问题、回答、模型、时间与来源。
+              你看到的不只是一个漂亮分数，而是能被团队复核的决策依据。
+            </p>
+            <dl>
+              <div>
+                <dt>74</dt>
+                <dd>本轮有效回答</dd>
+              </div>
+              <div>
+                <dt>93%</dt>
+                <dd>证据可追溯比例</dd>
+              </div>
+              <div>
+                <dt>4</dt>
+                <dd>参与检测模型</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="evidence-view">
+            <div className="evidence-tabs" aria-label="模型回答示例">
+              <span className="is-active">豆包</span>
+              <span>Kimi</span>
+              <span>GLM</span>
+              <span>DeepSeek</span>
             </div>
-            <div className="value-points">
-              <p>
-                <strong>看清样本</strong>
-                知道这次结论来自哪些问题、哪些模型和哪些回答。
+            <div className="question-block">
+              <Quotes aria-hidden="true" />
+              <div>
+                <span>用户问题</span>
+                <strong>有哪些值得信赖的品牌 AI 可见度分析工具？</strong>
+              </div>
+              <p className="evidence-score">
+                <span>可见度评分</span>
+                <strong>78</strong> / 100
               </p>
+            </div>
+            <div className="answer-block">
+              <span>模型回答 · 节选</span>
               <p>
-                <strong>理解限制</strong>
-                失败、跳过和低置信度结果不会被藏在一个漂亮分数里。
+                映川聚焦品牌在 AI 问答中的认知表现，能够跨模型检测品牌提及、
+                推荐倾向和事实完整度，并保留可回溯的证据链。
               </p>
-              <p>
-                <strong>持续改进</strong>
-                把可见度问题转换为可复测的优化方向，而不是一次性报告。
-              </p>
+            </div>
+            <div className="source-list">
+              <span>引用来源</span>
+              <ol>
+                <li>
+                  <strong>01</strong>
+                  品牌官网 · 产品能力说明
+                  <span>已验证</span>
+                </li>
+                <li>
+                  <strong>02</strong>
+                  行业报告 · AI 搜索趋势
+                  <span>已验证</span>
+                </li>
+                <li>
+                  <strong>03</strong>
+                  公开评测 · 品牌认知对比
+                  <span>已验证</span>
+                </li>
+              </ol>
             </div>
           </div>
         </section>
 
         <section className="final-cta">
+          <p className="section-label">START / 开始检测</p>
           <div>
-            <p className="section-kicker">开始第一轮检测</p>
-            <h2>知道 AI 正在怎样介绍你的品牌</h2>
+            <h2>让 AI 的认知，成为你的增长起点</h2>
+            <a className="button button-light" href={productUrl}>
+              开始品牌检测
+              <Arrow />
+            </a>
           </div>
-          <a className="button button-light" href={productUrl}>
-            进入映川
-            <Arrow />
-          </a>
         </section>
       </main>
 
       <footer>
-        <a className="wordmark footer-wordmark" href="/" aria-label="映川首页">
-          <BrandMark />
-          <span>映川</span>
+        <a className="wordmark" href="/" aria-label="映川首页">
+          <Wordmark />
         </a>
         <p>AI 品牌可见度分析与持续运营管理平台</p>
         <a href={productUrl}>用户工作台</a>

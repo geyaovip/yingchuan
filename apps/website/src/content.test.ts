@@ -17,6 +17,6 @@ describe("website content", () => {
   });
 
   it("keeps the landing page capability set concise", () => {
-    expect(capabilities).toHaveLength(4);
+    expect(capabilities).toHaveLength(3);
   });
 });
