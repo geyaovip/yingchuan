@@ -11,7 +11,7 @@
 - Cloudflare：`app.chatway.chat` 和 `admin.chatway.chat` 的 Pages、自定义域、生产变量与 preview 隔离已完成；Resend DNS 记录已验证，`api.chatway.chat` 的 DNS-only A 记录已指向共享服务器；
 - GitHub：私有仓库、`main` 分支、CI 和 `production` Environment 已完成；映川专用 SSH 密钥及主机指纹已配置；
 - 共享云服务器：Ubuntu x86_64、2 核/1.9 GiB、根盘盘点时约 33 GiB 可用；已盘点并避开 4 个其他 Compose project。映川独立 API/Worker/PostgreSQL/Redis/OpenClaw/Caddy 已上线，只有 Caddy 发布 80/443，其他服务使用独立内网与受限出站网络，不使用现有 Cloudflare Tunnel；
-- Telegram：E11-S3 管理页面已实现；生产后台上线后，由白名单管理员 `geyaovip@163.com` 在页面填写 Bot Token/Chat ID 并发送测试消息。
+- Telegram：白名单管理员 `geyaovip@163.com` 已在生产后台完成二次验证，加密保存并启用 Bot Token/Chat ID；配置只显示掩码，两次真实测试投递均成功，配置与测试审计记录已验证。明文密钥未进入仓库、文档或普通日志。
 
 ## 已完成的技术 Spike
 
