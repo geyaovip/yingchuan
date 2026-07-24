@@ -10,7 +10,8 @@
   "overrides": {
     "@redocly/openapi-core": {
       "js-yaml": "4.3.0"
-    }
+    },
+    "find-my-way": "9.7.0"
   },
   "workspaces": [
     "apps/*",
