@@ -60,6 +60,7 @@ describe("analysis jobs, runs, cancellation and retries", () => {
   let projectId: string;
   const failKimi = true;
   let failDoubao = false;
+  const requestedOutputLimits: (number | undefined)[] = [];
 
   beforeAll(async () => {
     process.env.DATABASE_URL = databaseUrl;
@@ -68,6 +69,7 @@ describe("analysis jobs, runs, cancellation and retries", () => {
     emailSender = new AnalysisEmailSender();
     const adapter: ModelProviderAdapter = {
       invoke: (input) => {
+        requestedOutputLimits.push(input.maxOutputTokens);
         if (
           (input.modelCode.includes("kimi") && failKimi) ||
           (input.modelCode.includes("doubao") && failDoubao)
@@ -325,6 +327,8 @@ describe("analysis jobs, runs, cancellation and retries", () => {
     });
     const analysis = app.get<AnalysisApplicationService>(ANALYSIS_SERVICE);
     for (const event of events) await analysis.executeEvent(event.id);
+    expect(requestedOutputLimits.length).toBeGreaterThanOrEqual(2);
+    expect(requestedOutputLimits.every((limit) => limit === 2048)).toBe(true);
     const completed = await read()
       .get(`/api/v1/analysis-jobs/${first.body.data.id}`)
       .expect(200);
@@ -346,6 +350,25 @@ describe("analysis jobs, runs, cancellation and retries", () => {
     });
     const scoring = new ScoringApplicationService(database);
     for (const event of parseEvents) await scoring.parseEvent(event.id);
+    await request(app.getHttpServer())
+      .get(`/api/v1/analysis-jobs/${first.body.data.id}/model-runs`)
+      .expect(401);
+    const answerRecords = await read()
+      .get(`/api/v1/analysis-jobs/${first.body.data.id}/model-runs`)
+      .expect(200);
+    expect(answerRecords.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          mentions: expect.arrayContaining([
+            expect.objectContaining({ kind: "target" }),
+          ]),
+          parseResult: expect.objectContaining({ validSample: true }),
+          result: expect.objectContaining({
+            responseText: expect.stringContaining("分析测试项目"),
+          }),
+        }),
+      ]),
+    );
     const scores = await read()
       .get(`/api/v1/projects/${projectId}/scores`)
       .expect(200);

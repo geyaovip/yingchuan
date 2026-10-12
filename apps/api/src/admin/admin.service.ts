@@ -217,7 +217,7 @@ export class AdminService {
           id: uuidv7(),
           idempotencyKey: `admin-adjustment/${uuidv7()}`,
           quantityMicros,
-          resourceType: "credit",
+          resourceType: "model_cost",
           source: `admin:${reason.trim()}`,
           userId: auth.user.id,
           workspaceId,

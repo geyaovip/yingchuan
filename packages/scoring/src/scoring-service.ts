@@ -18,6 +18,10 @@ import {
   type ScoreSample,
 } from "./score-v1.js";
 
+export function isCompleteModelAnswer(finishReason: string | null | undefined) {
+  return finishReason !== "length";
+}
+
 export class ScoringApplicationService {
   constructor(private readonly database: PrismaClient) {}
 
@@ -40,6 +44,7 @@ export class ScoringApplicationService {
       where: { id: event.aggregateId },
     });
     if (!run?.result) return false;
+    const finishReason = run.result.finishReason;
     const brand = run.analysisJob.project.brandEntity;
     const names = brand
       ? [brand.canonicalName, ...brand.aliases.map((item) => item.value)]
@@ -61,7 +66,8 @@ export class ScoringApplicationService {
           refused: parsed.refused,
           sentimentLabel: parsed.sentimentLabel,
           sentimentScore: parsed.sentimentScore,
-          validSample: parsed.validSample,
+          validSample:
+            parsed.validSample && isCompleteModelAnswer(finishReason),
         },
         update: {},
         where: { modelRunId: run.id },

@@ -443,10 +443,10 @@ export class OperationsDailyReportApplicationService {
       newProjects,
       newUsers,
       paidUsers: null,
-      paidUsersUnavailableReason: "P0 暂无订单和付费套餐数据",
+      paidUsersUnavailableReason: "尚未接入订单和付费套餐数据",
       partiallyCompletedAnalysisJobs,
       revenueMicros: null,
-      revenueUnavailableReason: "P0 暂无收入账务数据",
+      revenueUnavailableReason: "尚未接入收入账务数据",
       suggestions,
     };
   }

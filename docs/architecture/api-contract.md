@@ -152,6 +152,8 @@ GET    /api/v1/analysis-jobs/:jobId/model-runs
 POST   /api/v1/analysis-jobs/:jobId/cancellation
 POST   /api/v1/analysis-jobs/:jobId/retries
 
+`GET /analysis-jobs/:jobId` 与其 `/model-runs` 子资源只对具备该工作区 `report.view` 的用户返回。运行明细包含冻结的问题与模型版本、解析结果 `parseResult`、实体提及 `mentions`、模型原文与官方返回引用 `result`。正文到期清理后 `responseText` 为空并设置 `responsePurgedAt`；界面必须如实展示清理状态。
+
 GET    /api/v1/projects/:projectId/scores
 GET    /api/v1/projects/:projectId/reports
 GET    /api/v1/projects/:projectId/reports/:versionId
@@ -210,6 +212,11 @@ GET    /api/v1/admin/data-lifecycle/legal-holds
 POST   /api/v1/admin/data-lifecycle/legal-holds
 POST   /api/v1/admin/data-lifecycle/legal-holds/:holdId/release
 ```
+
+管理端额度调整写入 `model_cost` 资源账本；用户端用量余额、分析估算预留和任务结算均读取同一资源类型。调整记录保留操作原因与审计日志。
+分析任务单次模型回答上限为 2048 输出 Token，额度预估按相同上限计算；超时仍按模型配置记录失败与重试，不展示未确认结果。
+火山方舟 `doubao-seed-2-1-turbo-260628` 的非联网 Chat Completions 调用使用官方支持的 `thinking.type=disabled`，以缩短普通 GEO 问答的响应时间；联网请求及其他模型保持各自默认模式。参数支持以[方舟深度思考文档](https://docs.volcengine.com/docs/ark/deep-thinking?lang=en)为准。
+模型回答保存供应商返回的 `finishReason`；达到输出上限的回答仍保留原文和用量，但标记为不完整，不计入有效评分样本。用户端回答记录明确展示该状态。
 
 ## 9. 异步状态更新
 

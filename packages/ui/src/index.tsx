@@ -9,11 +9,13 @@ import {
 } from "react";
 import {
   Ban,
+  BookOpenText,
   Bell,
   Bot,
   BrainCircuit,
   Building2,
   ChartNoAxesCombined,
+  CircleHelp,
   ChevronUp,
   Circle,
   CircleAlert,
@@ -21,13 +23,16 @@ import {
   FolderKanban,
   Info,
   LayoutDashboard,
+  LibraryBig,
   ListTodo,
   LogOut,
   Menu,
   RefreshCcw,
+  Sparkles,
   ScrollText,
   Settings,
   UserRound,
+  Tags,
   UsersRound,
   X,
   type LucideIcon,
@@ -35,19 +40,28 @@ import {
 
 export type NavigationIconName =
   | "agent"
+  | "answers"
   | "audit"
+  | "brand"
+  | "competitors"
   | "dashboard"
+  | "history"
   | "models"
   | "notifications"
   | "projects"
+  | "prompts"
+  | "reports"
   | "settings"
+  | "sources"
   | "tasks"
   | "team"
   | "usage"
-  | "workspaces";
+  | "workspaces"
+  | "optimization";
 
 export interface NavigationItem {
   readonly badge?: string;
+  readonly group?: string;
   readonly href: string;
   readonly icon?: NavigationIconName;
   readonly label: string;
@@ -55,16 +69,24 @@ export interface NavigationItem {
 
 const navigationIcons: Record<NavigationIconName, LucideIcon> = {
   agent: Bot,
+  answers: BookOpenText,
   audit: ScrollText,
+  brand: Building2,
+  competitors: Tags,
   dashboard: LayoutDashboard,
+  history: ScrollText,
   models: BrainCircuit,
   notifications: Bell,
   projects: FolderKanban,
+  prompts: CircleHelp,
+  reports: ChartNoAxesCombined,
   settings: Settings,
+  sources: LibraryBig,
   tasks: ListTodo,
   team: UsersRound,
   usage: ChartNoAxesCombined,
   workspaces: Building2,
+  optimization: Sparkles,
 };
 
 export interface WorkspaceOption {
@@ -103,6 +125,7 @@ export function AppShell({
   workspaces = [],
 }: AppShellProps) {
   const resolvedBrandHref = brandHref ?? navigation[0]?.href ?? "/dashboard";
+  const secondaryNavigationStart = navigation.findIndex((item) => item.group);
   const [accountOpen, setAccountOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -150,7 +173,7 @@ export function AppShell({
     const focusable = () =>
       Array.from(
         sidebar?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
-      ).filter((element) => !element.hasAttribute("hidden"));
+      ).filter((element) => element.getClientRects().length > 0);
 
     focusable()[0]?.focus();
 
@@ -266,9 +289,39 @@ export function AppShell({
         )}
         <Navigation
           activeHref={activeHref}
-          items={navigation}
+          items={
+            projectNavigation.length > 0 && secondaryNavigationStart >= 0
+              ? navigation.slice(0, secondaryNavigationStart)
+              : navigation
+          }
           onNavigate={() => setMenuOpen(false)}
         />
+        {projectNavigation.length > 0 && (
+          <>
+            <div className="yc-sidebar__project">
+              <p className="yc-sidebar__project-title" title={projectTitle}>
+                {projectTitle ?? "当前品牌"}
+              </p>
+              <Navigation
+                activeHref={activeHref}
+                ariaLabel="项目导航"
+                items={projectNavigation}
+                onNavigate={() => setMenuOpen(false)}
+              />
+            </div>
+            {secondaryNavigationStart >= 0 && (
+              <details className="yc-sidebar__more">
+                <summary>工作空间</summary>
+                <Navigation
+                  activeHref={activeHref}
+                  ariaLabel="工作空间导航"
+                  items={navigation.slice(secondaryNavigationStart)}
+                  onNavigate={() => setMenuOpen(false)}
+                />
+              </details>
+            )}
+          </>
+        )}
         <div className="yc-sidebar__account" data-yc-account-menu>
           <button
             aria-expanded={accountOpen}
@@ -297,22 +350,6 @@ export function AppShell({
         </div>
       </aside>
       <div className="yc-app-shell__body">
-        {projectNavigation.length > 0 && (
-          <nav aria-label="项目导航" className="yc-project-nav">
-            {projectTitle && <strong>{projectTitle}</strong>}
-            <div>
-              {projectNavigation.map((item) => (
-                <a
-                  aria-current={activeHref === item.href ? "page" : undefined}
-                  href={item.href}
-                  key={item.href}
-                >
-                  {item.label}
-                </a>
-              ))}
-            </div>
-          </nav>
-        )}
         <main className="yc-main" id="main-content" tabIndex={-1}>
           {children}
         </main>
@@ -356,23 +393,30 @@ function AccountMenu({
 
 function Navigation({
   activeHref,
+  ariaLabel = "主导航",
   items,
   onNavigate,
 }: {
   readonly activeHref: string;
+  readonly ariaLabel?: string;
   readonly items: readonly NavigationItem[];
   readonly onNavigate: () => void;
 }) {
   return (
-    <nav aria-label="主导航" className="yc-main-nav">
-      {items.map((item) => (
-        <NavigationLink
-          active={activeHref === item.href}
-          item={item}
-          key={item.href}
-          onNavigate={onNavigate}
-        />
-      ))}
+    <nav aria-label={ariaLabel} className="yc-main-nav">
+      {items.map((item, index) => {
+        const showGroup = item.group && item.group !== items[index - 1]?.group;
+        return (
+          <div className="yc-main-nav__entry" key={item.href}>
+            {showGroup && <p className="yc-main-nav__group">{item.group}</p>}
+            <NavigationLink
+              active={activeHref === item.href}
+              item={item}
+              onNavigate={onNavigate}
+            />
+          </div>
+        );
+      })}
     </nav>
   );
 }

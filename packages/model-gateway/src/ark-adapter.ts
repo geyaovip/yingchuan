@@ -66,6 +66,11 @@ export class VolcengineArkAdapter implements ModelProviderAdapter {
           ? { max_output_tokens: request.maxOutputTokens }
           : { max_tokens: request.maxOutputTokens }
         : {}),
+      ...(request.apiMode === "chat_completions" &&
+      request.modelCode === "doubao-seed-2-1-turbo-260628" &&
+      !request.nativeWebSearch
+        ? { thinking: { type: "disabled" } }
+        : {}),
       ...(request.nativeWebSearch
         ? { tools: [request.nativeWebSearch.toolConfig] }
         : {}),
@@ -143,8 +148,15 @@ export class VolcengineArkAdapter implements ModelProviderAdapter {
         false,
       );
     const citations = this.citations(value, output);
+    const finishReason =
+      typeof first.finish_reason === "string"
+        ? first.finish_reason.slice(0, 32)
+        : value.status === "incomplete"
+          ? "length"
+          : undefined;
     return {
       citations,
+      finishReason,
       inputTokens: this.number(usage.input_tokens ?? usage.prompt_tokens),
       outputTokens: this.number(usage.output_tokens ?? usage.completion_tokens),
       providerRequestId:

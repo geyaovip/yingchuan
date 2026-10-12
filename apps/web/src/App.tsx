@@ -12,7 +12,7 @@ import {
   type NavigationItem,
   type WorkspaceOption,
 } from "@yingchuan/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Navigate,
   Route,
@@ -23,7 +23,12 @@ import {
 } from "react-router-dom";
 
 import { api } from "./api";
-import { projectNavigation } from "./navigation";
+import {
+  hasProjectCapability,
+  onboardingIsComplete,
+  projectNavigation,
+} from "./navigation";
+import { formatScore } from "./score-format";
 
 interface WorkspaceResponse extends WorkspaceOption {
   readonly memberships: readonly {
@@ -71,6 +76,17 @@ interface KnowledgeSource {
   readonly status: string;
   readonly type: string;
   readonly version: number;
+}
+
+interface SourceSnapshotResponse {
+  readonly contentHash: string;
+  readonly contentPurgedAt?: string | null;
+  readonly extractedText?: string | null;
+  readonly fetchedAt: string;
+  readonly finalUrl: string;
+  readonly httpStatus: number;
+  readonly id: string;
+  readonly mimeType: string;
 }
 
 interface PromptResponse {
@@ -123,8 +139,16 @@ interface AnalysisJobResponse {
   readonly succeededRuns: number;
   readonly totalRuns: number;
   readonly runs?: readonly {
+    readonly completedAt?: string;
     readonly errorCode?: string;
     readonly id: string;
+    readonly mentions?: readonly {
+      readonly confidence: string;
+      readonly evidenceSnippet: string;
+      readonly kind: "target" | "competitor" | "other";
+      readonly rank?: number;
+      readonly rawName: string;
+    }[];
     readonly modelConfigVersion: {
       readonly modelConfig: {
         readonly displayName: string;
@@ -132,19 +156,31 @@ interface AnalysisJobResponse {
       };
     };
     readonly promptVersion: { readonly text: string };
+    readonly parseResult?: {
+      readonly validSample: boolean;
+    };
+    readonly result?: {
+      readonly citations: readonly {
+        readonly title?: string;
+        readonly url: string;
+      }[];
+      readonly finishReason?: string;
+      readonly responsePurgedAt?: string;
+      readonly responseText: string;
+    };
     readonly status: string;
   }[];
 }
 
 interface VisibilityScoreResponse {
-  readonly confidence: number;
+  readonly confidence: number | string;
   readonly confidenceLevel: string;
   readonly diagnosticOnly: boolean;
   readonly dimensions: readonly {
     readonly dimensionCode: string;
     readonly value?: number;
   }[];
-  readonly overallScore: number;
+  readonly overallScore: number | string;
   readonly scoreVersion: string;
 }
 
@@ -158,14 +194,14 @@ interface CompetitorResponse {
 
 interface ReportVersionResponse {
   readonly contentSnapshot: {
-    readonly confidence: number;
+    readonly confidence: number | string;
     readonly failedRuns: number;
     readonly modelBreakdown: readonly {
       readonly model: string;
       readonly prompt: string;
       readonly status: string;
     }[];
-    readonly overallScore: number;
+    readonly overallScore: number | string;
     readonly scoreVersion: string;
     readonly successfulRuns: number;
   };
@@ -244,9 +280,14 @@ interface BrandAssistantRunResponse {
 }
 
 const mainNavigation: readonly NavigationItem[] = [
-  { href: "/dashboard", icon: "dashboard", label: "概览" },
+  { href: "/dashboard", icon: "dashboard", label: "工作台" },
   { href: "/projects", icon: "projects", label: "项目" },
-  { href: "/workspaces", icon: "workspaces", label: "工作区" },
+  {
+    href: "/workspaces",
+    icon: "workspaces",
+    group: "工作空间",
+    label: "工作区",
+  },
   { href: "/notifications", icon: "notifications", label: "通知" },
   { href: "/usage", icon: "usage", label: "用量" },
   { href: "/team", icon: "team", label: "团队" },
@@ -426,8 +467,9 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
     pathProjectId && pathProjectId !== "new"
       ? projectNavigation(pathProjectId, {
           assistant: true,
-          website: activeProject?.capabilities.some(
-            (item) => item.code === "website" && item.enabled,
+          website: hasProjectCapability(
+            activeProject?.capabilities ?? [],
+            "website",
           ),
         })
       : [];
@@ -502,6 +544,10 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
             element={<ProjectAnalysis onProject={setActiveProject} />}
           />
           <Route
+            path="/projects/:projectId/answers"
+            element={<ProjectAnswers onProject={setActiveProject} />}
+          />
+          <Route
             path="/projects/:projectId/analysis/new"
             element={<ProjectAnalysis onProject={setActiveProject} />}
           />
@@ -552,7 +598,25 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route
             path="/team"
-            element={<TeamPage workspaceId={workspaceId} />}
+            element={
+              <TeamPage
+                canManage={
+                  workspaces
+                    .find((item) => item.id === workspaceId)
+                    ?.memberships.some((membership) =>
+                      ["owner", "admin"].includes(membership.role.code),
+                    ) ?? false
+                }
+                isOwner={
+                  workspaces
+                    .find((item) => item.id === workspaceId)
+                    ?.memberships.some(
+                      (membership) => membership.role.code === "owner",
+                    ) ?? false
+                }
+                workspaceId={workspaceId}
+              />
+            }
           />
           <Route
             path="/settings"
@@ -653,11 +717,15 @@ function Dashboard({
             <article>
               <strong>
                 {
-                  projects.filter((project) => project.status === "active")
-                    .length
+                  projects.filter((project) =>
+                    onboardingIsComplete(
+                      project.status,
+                      project.onboardingStatus,
+                    ),
+                  ).length
                 }
               </strong>
-              <span>活跃项目</span>
+              <span>已就绪项目</span>
             </article>
             <article>
               <strong>
@@ -801,7 +869,15 @@ function NotificationsPage() {
   );
 }
 
-function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
+function TeamPage({
+  canManage,
+  isOwner,
+  workspaceId,
+}: {
+  readonly canManage: boolean;
+  readonly isOwner: boolean;
+  readonly workspaceId?: string;
+}) {
   const [members, setMembers] = useState<readonly WorkspaceMemberResponse[]>();
   const [invitations, setInvitations] =
     useState<readonly WorkspaceInvitationResponse[]>();
@@ -852,6 +928,8 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
       setBusy(false);
     }
   };
+  const ownerCount =
+    members?.filter((member) => member.role.code === "owner").length ?? 0;
   if (!workspaceId)
     return (
       <StatePanel
@@ -884,39 +962,45 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
                 {
                   key: "role",
                   label: "角色",
-                  render: (row: WorkspaceMemberResponse) => (
-                    <select
-                      aria-label={`调整 ${row.user.displayEmail} 的角色`}
-                      disabled={busy}
-                      onChange={(event) => {
-                        const nextRole = event.target.value;
-                        if (
-                          globalThis.confirm(
-                            `确认将 ${row.user.displayEmail} 的角色改为${roleLabel(nextRole)}？`,
+                  render: (row: WorkspaceMemberResponse) =>
+                    !canManage ||
+                    (row.role.code === "owner" && ownerCount === 1) ? (
+                      <span>{roleLabel(row.role.code)}</span>
+                    ) : (
+                      <select
+                        aria-label={`调整 ${row.user.displayEmail} 的角色`}
+                        disabled={
+                          busy || (row.role.code === "owner" && !isOwner)
+                        }
+                        onChange={(event) => {
+                          const nextRole = event.target.value;
+                          if (
+                            globalThis.confirm(
+                              `确认将 ${row.user.displayEmail} 的角色改为${roleLabel(nextRole)}？`,
+                            )
                           )
-                        )
-                          void execute(() =>
-                            api.request(
-                              `/workspaces/${workspaceId}/members/${row.id}`,
-                              {
-                                body: JSON.stringify({
-                                  roleCode: nextRole,
-                                  version: row.version,
-                                }),
-                                method: "PATCH",
-                              },
-                            ),
-                          );
-                      }}
-                      value={row.role.code}
-                    >
-                      <option value="owner">所有者</option>
-                      <option value="admin">管理员</option>
-                      <option value="analyst">分析师</option>
-                      <option value="operator">运营</option>
-                      <option value="viewer">只读</option>
-                    </select>
-                  ),
+                            void execute(() =>
+                              api.request(
+                                `/workspaces/${workspaceId}/members/${row.id}`,
+                                {
+                                  body: JSON.stringify({
+                                    roleCode: nextRole,
+                                    version: row.version,
+                                  }),
+                                  method: "PATCH",
+                                },
+                              ),
+                            );
+                        }}
+                        value={row.role.code}
+                      >
+                        <option value="owner">所有者</option>
+                        <option value="admin">管理员</option>
+                        <option value="analyst">分析师</option>
+                        <option value="operator">运营</option>
+                        <option value="viewer">只读</option>
+                      </select>
+                    ),
                 },
                 {
                   key: "joined",
@@ -928,93 +1012,101 @@ function TeamPage({ workspaceId }: { readonly workspaceId?: string }) {
                 {
                   key: "action",
                   label: "操作",
-                  render: (row: WorkspaceMemberResponse) => (
-                    <Button
-                      disabled={busy}
-                      intent="danger"
-                      onClick={() => {
-                        if (
-                          globalThis.confirm(
-                            `确认从工作区移除 ${row.user.displayEmail}？对方将立即失去访问权限。`,
+                  render: (row: WorkspaceMemberResponse) =>
+                    row.role.code === "owner" && ownerCount === 1 ? (
+                      <span className="yc-meta">须保留唯一所有者</span>
+                    ) : !canManage ||
+                      (row.role.code === "owner" && !isOwner) ? (
+                      <span className="yc-meta">无管理权限</span>
+                    ) : (
+                      <Button
+                        disabled={busy}
+                        intent="danger"
+                        onClick={() => {
+                          if (
+                            globalThis.confirm(
+                              `确认从工作区移除 ${row.user.displayEmail}？对方将立即失去访问权限。`,
+                            )
                           )
-                        )
-                          void execute(() =>
-                            api.request(
-                              `/workspaces/${workspaceId}/members/${row.id}`,
-                              { method: "DELETE" },
-                            ),
-                          );
-                      }}
-                    >
-                      移除
-                    </Button>
-                  ),
+                            void execute(() =>
+                              api.request(
+                                `/workspaces/${workspaceId}/members/${row.id}`,
+                                { method: "DELETE" },
+                              ),
+                            );
+                        }}
+                      >
+                        移除
+                      </Button>
+                    ),
                 },
               ]}
               rows={members}
             />
           )}
         </section>
-        <section className="yc-card yc-section-card">
-          <h2>邀请成员</h2>
-          <FormField hint="邀请链接通过邮件发送，7 天内有效。" label="邮箱">
-            <input
-              onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              value={email}
-            />
-          </FormField>
-          <FormField label="初始角色">
-            <select
-              onChange={(event) => setRoleCode(event.target.value)}
-              value={roleCode}
+        {canManage && (
+          <section className="yc-card yc-section-card">
+            <h2>邀请成员</h2>
+            <FormField hint="邀请链接通过邮件发送，7 天内有效。" label="邮箱">
+              <input
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                value={email}
+              />
+            </FormField>
+            <FormField label="初始角色">
+              <select
+                onChange={(event) => setRoleCode(event.target.value)}
+                value={roleCode}
+              >
+                <option value="admin">管理员</option>
+                <option value="analyst">分析师</option>
+                <option value="operator">运营</option>
+                <option value="viewer">只读</option>
+              </select>
+            </FormField>
+            <Button
+              disabled={busy || !email.trim()}
+              onClick={() =>
+                void execute(async () => {
+                  await api.request(`/workspaces/${workspaceId}/invitations`, {
+                    body: JSON.stringify({ email: email.trim(), roleCode }),
+                    method: "POST",
+                  });
+                  setEmail("");
+                })
+              }
             >
-              <option value="admin">管理员</option>
-              <option value="analyst">分析师</option>
-              <option value="operator">运营</option>
-              <option value="viewer">只读</option>
-            </select>
-          </FormField>
-          <Button
-            disabled={busy || !email.trim()}
-            onClick={() =>
-              void execute(async () => {
-                await api.request(`/workspaces/${workspaceId}/invitations`, {
-                  body: JSON.stringify({ email: email.trim(), roleCode }),
-                  method: "POST",
-                });
-                setEmail("");
-              })
-            }
-          >
-            {busy ? "处理中…" : "发送邀请"}
-          </Button>
-          <h3>待处理邀请</h3>
-          {!invitations ? (
-            <Skeleton lines={2} />
-          ) : invitations.length ? (
-            <ul className="yc-plain-list">
-              {invitations.map((item) => (
-                <li key={item.id}>
-                  <span>
-                    <strong>{item.emailNormalized}</strong>
-                    <small>
-                      {roleLabel(item.role.code)} · 到期时间：
-                      {formatDateTime(item.expiresAt)}
-                    </small>
-                  </span>
-                  <StatusBadge
-                    tone={item.status === "active" ? "success" : "neutral"}
-                  >
-                    {invitationStatusLabel(item.status)}
-                  </StatusBadge>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="yc-meta">暂无待处理邀请。</p>
-          )}
-        </section>
+              {busy ? "处理中…" : "发送邀请"}
+            </Button>
+            <h3>待处理邀请</h3>
+            {!invitations ? (
+              <Skeleton lines={2} />
+            ) : invitations.length ? (
+              <ul className="yc-plain-list">
+                {invitations.map((item) => (
+                  <li key={item.id}>
+                    <span>
+                      <strong>{item.emailNormalized}</strong>
+                      <small>
+                        {roleLabel(item.role.code)} · 到期时间：
+                        {formatDateTime(item.expiresAt)}
+                      </small>
+                    </span>
+                    <StatusBadge
+                      tone={item.status === "active" ? "success" : "neutral"}
+                    >
+                      {invitationStatusLabel(item.status)}
+                    </StatusBadge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="yc-meta">暂无待处理邀请。</p>
+            )}
+          </section>
+        )}
       </div>
     </>
   );
@@ -1491,6 +1583,9 @@ function ProjectOnboarding({
   const pendingCandidates = project.brandCandidates.filter(
     (candidate) => candidate.status === "pending",
   );
+  if (onboardingIsComplete(project.status, project.onboardingStatus)) {
+    return <Navigate replace to={`/projects/${project.id}/overview`} />;
+  }
   return (
     <>
       <PageHeader
@@ -1561,6 +1656,34 @@ function ProjectOverview({
 }) {
   const navigate = useNavigate();
   const { project, loading, error } = useProject(onProject);
+  const [reports, setReports] = useState<readonly ReportVersionResponse[]>();
+  const [prompts, setPrompts] = useState<readonly PromptResponse[]>();
+  const [summaryError, setSummaryError] = useState<string>();
+  useEffect(() => {
+    if (!project?.id) return;
+    let active = true;
+    void Promise.allSettled([
+      api.request<readonly ReportVersionResponse[]>(
+        `/projects/${project.id}/reports`,
+        {},
+        { cache: false },
+      ),
+      api.request<readonly PromptResponse[]>(`/projects/${project.id}/prompts`),
+    ]).then(([reportResult, promptResult]) => {
+      if (!active) return;
+      if (reportResult.status === "fulfilled") setReports(reportResult.value);
+      if (promptResult.status === "fulfilled") setPrompts(promptResult.value);
+      if (
+        reportResult.status === "rejected" ||
+        promptResult.status === "rejected"
+      )
+        setSummaryError("部分分析数据暂时无法读取，可进入对应页面重试。");
+      else setSummaryError(undefined);
+    });
+    return () => {
+      active = false;
+    };
+  }, [project?.id]);
   if (loading) return <Skeleton lines={5} />;
   if (error || !project)
     return (
@@ -1570,31 +1693,124 @@ function ProjectOverview({
         tone="error"
       />
     );
+  const latest = reports?.[0];
   return (
     <>
       <PageHeader
         actions={
-          <Button onClick={() => navigate(`/projects/${project.id}/sources`)}>
-            管理认知源
+          <Button onClick={() => navigate(`/projects/${project.id}/reports`)}>
+            查看可见度分析
           </Button>
         }
-        description="查看品牌身份、数据来源和当前分析准备情况。"
+        description="一屏查看品牌分析结果、有效样本与下一步操作。所有指标来自最近一次真实报告。"
         title={project.name}
       />
-      <div className="yc-content-grid">
+      {summaryError && (
+        <StatePanel
+          description={summaryError}
+          title="数据加载不完整"
+          tone="stale"
+        />
+      )}
+      {latest ? (
+        <>
+          {latest.limitationSummary && (
+            <StatePanel
+              description={latest.limitationSummary}
+              title="本次结果的限制"
+              tone="stale"
+            />
+          )}
+          <div className="yc-metric-grid">
+            <article>
+              <strong>
+                {formatScore(latest.contentSnapshot.overallScore)}
+              </strong>
+              <span>可见度分 · {latest.contentSnapshot.scoreVersion}</span>
+            </article>
+            <article>
+              <strong>{formatScore(latest.contentSnapshot.confidence)}</strong>
+              <span>置信度</span>
+            </article>
+            <article>
+              <strong>{latest.contentSnapshot.successfulRuns}</strong>
+              <span>有效模型回答</span>
+            </article>
+            <article>
+              <strong>{latest.contentSnapshot.failedRuns}</strong>
+              <span>失败运行</span>
+            </article>
+          </div>
+        </>
+      ) : reports ? (
+        <StatePanel
+          action={
+            <Button onClick={() => navigate(`/projects/${project.id}/reports`)}>
+              开始首次分析
+            </Button>
+          }
+          description="确认用户提问并运行模型后，这里会展示第一份可见度结果。"
+          title="还没有分析报告"
+        />
+      ) : (
+        <Skeleton lines={3} />
+      )}
+      <div className="yc-content-grid yc-overview-grid">
         <section className="yc-card yc-section-card">
-          <h2>品牌身份</h2>
+          <h2>监测对象</h2>
           <p>
             <strong>{project.brandEntity?.canonicalName ?? "待确认"}</strong>
           </p>
           <ProjectStatus status={project.status} />
+          <p className="yc-meta">
+            已配置 {prompts?.length ?? "—"} 个用户提问，其中{" "}
+            {prompts?.filter((item) => item.enabled).length ?? "—"} 个启用。
+          </p>
+          <Button
+            intent="secondary"
+            onClick={() => navigate(`/projects/${project.id}/prompts`)}
+          >
+            管理用户提问
+          </Button>
         </section>
         <section className="yc-card yc-section-card">
-          <h2>认知源</h2>
+          <h2>品牌资料</h2>
           <p>{project.knowledgeSources.length} 个来源</p>
           <p className="yc-meta">仅已确认来源可进入抓取队列。</p>
+          <Button
+            intent="secondary"
+            onClick={() => navigate(`/projects/${project.id}/sources`)}
+          >
+            管理认知源
+          </Button>
         </section>
       </div>
+      <section className="yc-card yc-section-card yc-overview-next">
+        <h2>继续分析</h2>
+        <div className="yc-overview-links">
+          <button
+            onClick={() => navigate(`/projects/${project.id}/answers`)}
+            type="button"
+          >
+            <strong>查看模型回答</strong>
+            <span>按问题和模型复核原文、提及与引用</span>
+          </button>
+          <button
+            onClick={() => navigate(`/projects/${project.id}/competitors`)}
+            type="button"
+          >
+            <strong>核对竞品</strong>
+            <span>确认或排除解析出的竞品候选</span>
+          </button>
+          <button
+            onClick={() => navigate(`/projects/${project.id}/optimization`)}
+            type="button"
+          >
+            <strong>查看优化建议</strong>
+            <span>根据最新报告确定下一步</span>
+          </button>
+        </div>
+      </section>
     </>
   );
 }
@@ -1657,11 +1873,19 @@ function ProjectBrand({
               </div>
               <div>
                 <dt>国家/地区</dt>
-                <dd>{brand.country ?? "未设置"}</dd>
+                <dd>
+                  {brand.country === "CN"
+                    ? "中国大陆"
+                    : (brand.country ?? "未设置")}
+                </dd>
               </div>
               <div>
                 <dt>主要语言</dt>
-                <dd>{brand.primaryLanguage ?? "未设置"}</dd>
+                <dd>
+                  {brand.primaryLanguage === "zh-CN"
+                    ? "简体中文"
+                    : (brand.primaryLanguage ?? "未设置")}
+                </dd>
               </div>
             </dl>
           </section>
@@ -1695,6 +1919,26 @@ function ProjectWebsite({
         tone="error"
       />
     );
+  if (!hasProjectCapability(project.capabilities, "website")) {
+    return (
+      <>
+        <PageHeader
+          title="官网"
+          description="官网来源需要先在认知源中人工确认。"
+        />
+        <StatePanel
+          action={
+            <Button onClick={() => navigate(`/projects/${project.id}/sources`)}>
+              管理认知源
+            </Button>
+          }
+          description="当前项目尚未启用官网能力。添加并确认官方网站后，这里会显示抓取状态。"
+          title="官网尚未启用"
+          tone="empty"
+        />
+      </>
+    );
+  }
   const websiteSources = project.knowledgeSources.filter(
     (source) => source.type === "official_website",
   );
@@ -1758,9 +2002,32 @@ function ProjectSources({
 }) {
   const { project, loading, error, reload } = useProject(onProject);
   const [url, setUrl] = useState("");
-  const [type, setType] = useState("other");
+  const [type, setType] = useState("official_website");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string>();
+  const [selectedSource, setSelectedSource] = useState<KnowledgeSource>();
+  const [snapshots, setSnapshots] =
+    useState<readonly SourceSnapshotResponse[]>();
+  const [snapshotsError, setSnapshotsError] = useState<string>();
+  const snapshotRequest = useRef(0);
+  const loadSnapshots = async (source: KnowledgeSource) => {
+    if (!project) return;
+    const request = ++snapshotRequest.current;
+    setSelectedSource(source);
+    setSnapshots(undefined);
+    setSnapshotsError(undefined);
+    try {
+      const next = await api.request<readonly SourceSnapshotResponse[]>(
+        `/projects/${project.id}/sources/${source.id}/snapshots`,
+        {},
+        { cache: false },
+      );
+      if (snapshotRequest.current === request) setSnapshots(next);
+    } catch (caught) {
+      if (snapshotRequest.current === request)
+        setSnapshotsError(messageFor(caught));
+    }
+  };
   const add = async () => {
     if (!project || !url.trim()) return;
     setBusy(true);
@@ -1811,6 +2078,9 @@ function ProjectSources({
         description="管理用于品牌分析的网站与内容来源，并查看每个来源的获取状态。"
         title="认知源"
       />
+      {actionError && (
+        <StatePanel description={actionError} title="操作未完成" tone="error" />
+      )}
       <div className="yc-content-grid">
         <section>
           {project.knowledgeSources.length ? (
@@ -1834,15 +2104,23 @@ function ProjectSources({
                 },
                 {
                   key: "action",
-                  label: "抓取",
+                  label: "操作",
                   render: (row) => (
-                    <Button
-                      disabled={busy || row.status !== "confirmed"}
-                      intent="ghost"
-                      onClick={() => void fetchSource(row.id)}
-                    >
-                      立即抓取
-                    </Button>
+                    <div className="yc-actions">
+                      <Button
+                        intent="ghost"
+                        onClick={() => void loadSnapshots(row)}
+                      >
+                        查看记录
+                      </Button>
+                      <Button
+                        disabled={busy || row.status !== "confirmed"}
+                        intent="ghost"
+                        onClick={() => void fetchSource(row.id)}
+                      >
+                        立即抓取
+                      </Button>
+                    </div>
                   ),
                 },
               ]}
@@ -1876,16 +2154,69 @@ function ProjectSources({
               value={url}
             />
           </FormField>
-          {actionError && (
-            <p className="yc-inline-error" role="alert">
-              {actionError}
-            </p>
-          )}
           <Button disabled={busy || !url.trim()} onClick={() => void add()}>
             {busy ? "处理中…" : "确认并添加"}
           </Button>
         </section>
       </div>
+      {selectedSource && (
+        <section className="yc-card yc-section-card">
+          <div className="yc-section-heading">
+            <div>
+              <h2>抓取记录</h2>
+              <p className="yc-meta yc-source-url">
+                {selectedSource.originalUrl}
+              </p>
+            </div>
+            <Button
+              intent="secondary"
+              onClick={() => void loadSnapshots(selectedSource)}
+            >
+              刷新记录
+            </Button>
+          </div>
+          {snapshotsError ? (
+            <StatePanel
+              description={snapshotsError}
+              title="记录加载失败"
+              tone="error"
+            />
+          ) : !snapshots ? (
+            <Skeleton lines={3} />
+          ) : snapshots.length === 0 ? (
+            <StatePanel
+              description="这个来源还没有成功抓取。点击来源行中的“立即抓取”后可回来查看结果。"
+              title="暂无抓取记录"
+            />
+          ) : (
+            <ResponsiveData
+              rows={snapshots}
+              columns={[
+                {
+                  key: "fetchedAt",
+                  label: "抓取时间",
+                  render: (row) => formatDateTime(row.fetchedAt),
+                },
+                {
+                  key: "status",
+                  label: "响应",
+                  render: (row) => `${row.httpStatus} · ${row.mimeType}`,
+                },
+                {
+                  key: "content",
+                  label: "内容",
+                  render: (row) =>
+                    row.contentPurgedAt
+                      ? "正文已按保留规则清理"
+                      : row.extractedText
+                        ? `${row.extractedText.slice(0, 160)}${row.extractedText.length > 160 ? "…" : ""}`
+                        : "未提取到正文",
+                },
+              ]}
+            />
+          )}
+        </section>
+      )}
     </>
   );
 }
@@ -1915,6 +2246,9 @@ function ProjectPrompts({
   const [history, setHistory] = useState<
     readonly { versionNumber: number; text: string }[]
   >([]);
+  const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const promptProjectId = project?.id;
   const reload = useCallback(async () => {
     if (!promptProjectId) return;
@@ -1972,6 +2306,15 @@ function ProjectPrompts({
         tone="error"
       />
     );
+  const groups = [
+    ...new Set(prompts.map((item) => item.groupKey || "未分组")),
+  ].sort();
+  const visiblePrompts = prompts.filter(
+    (item) =>
+      item.text.toLowerCase().includes(search.trim().toLowerCase()) &&
+      (groupFilter === "all" || (item.groupKey || "未分组") === groupFilter) &&
+      (statusFilter === "all" || (statusFilter === "enabled") === item.enabled),
+  );
   return (
     <>
       <PageHeader
@@ -1990,16 +2333,60 @@ function ProjectPrompts({
             生成建议问题
           </Button>
         }
-        description="维护分析问题、适用地区和版本。已完成分析使用的问题不会被后续编辑覆盖。"
-        title="分析问题"
+        description="按分组维护真实用户提问、地域和版本。启用的提问参与下一次分析；历史分析保留当时的问题版本。"
+        title="用户提问"
       />
       <AnalysisEstimatePanel projectId={project.id} />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
+      <div className="yc-answer-filters yc-prompt-filters">
+        <label>
+          搜索提问
+          <input
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="搜索问题内容"
+            value={search}
+          />
+        </label>
+        <label>
+          分组
+          <select
+            onChange={(event) => setGroupFilter(event.target.value)}
+            value={groupFilter}
+          >
+            <option value="all">全部分组</option>
+            {groups.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          启用状态
+          <select
+            onChange={(event) => setStatusFilter(event.target.value)}
+            value={statusFilter}
+          >
+            <option value="all">全部状态</option>
+            <option value="enabled">已启用</option>
+            <option value="disabled">已停用</option>
+          </select>
+        </label>
+        <p className="yc-prompt-count">
+          {prompts.filter((item) => item.enabled).length} 个启用 /{" "}
+          {prompts.length} 个提问
+        </p>
+      </div>
       <div className="yc-content-grid">
         <section>
-          {prompts.length ? (
+          {prompts.length && !visiblePrompts.length ? (
+            <StatePanel
+              description="调整关键词、分组或启用状态后重试。"
+              title="没有符合条件的提问"
+            />
+          ) : prompts.length ? (
             <ResponsiveData
               columns={[
                 {
@@ -2113,7 +2500,7 @@ function ProjectPrompts({
                   ),
                 },
               ]}
-              rows={prompts}
+              rows={visiblePrompts}
             />
           ) : (
             <StatePanel
@@ -2137,7 +2524,10 @@ function ProjectPrompts({
         <div className="yc-side-stack">
           <section className="yc-card yc-section-card">
             <h2>手动添加</h2>
-            <FormField label="问题">
+            <FormField
+              hint="问题会按原文发送给模型。使用 GEO 等多义缩写时，请写明“生成式引擎优化”，避免模型理解为其他领域。"
+              label="问题"
+            >
               <textarea
                 onChange={(event) => setText(event.target.value)}
                 rows={4}
@@ -2228,7 +2618,10 @@ function ProjectPrompts({
           </section>
           <section className="yc-card yc-section-card">
             <h2>批量导入</h2>
-            <FormField hint="每行一个问题，最多 100 行。" label="问题列表">
+            <FormField
+              hint="每行一个问题，最多 100 行；多义词请写出完整含义。"
+              label="问题列表"
+            >
               <textarea
                 onChange={(event) => setImportText(event.target.value)}
                 rows={5}
@@ -2460,11 +2853,13 @@ function ProjectAnalysis({
           )}
           <div className="yc-metric-grid">
             <article>
-              <strong>{report.contentSnapshot.overallScore.toFixed(1)}</strong>
+              <strong>
+                {formatScore(report.contentSnapshot.overallScore)}
+              </strong>
               <span>总分</span>
             </article>
             <article>
-              <strong>{report.contentSnapshot.confidence.toFixed(1)}</strong>
+              <strong>{formatScore(report.contentSnapshot.confidence)}</strong>
               <span>置信度</span>
             </article>
             <article>
@@ -2541,9 +2936,9 @@ function ProjectAnalysis({
         <section className="yc-card yc-section-card">
           <div className="yc-section-heading">
             <div>
-              <h2>{score.overallScore.toFixed(1)} / 100</h2>
+              <h2>{formatScore(score.overallScore)} / 100</h2>
               <p>
-                {score.scoreVersion} · 置信度 {score.confidence.toFixed(1)} (
+                {score.scoreVersion} · 置信度 {formatScore(score.confidence)} (
                 {confidenceLevelLabel(score.confidenceLevel)})
               </p>
             </div>
@@ -2870,6 +3265,370 @@ function AnalysisJobDetail() {
   );
 }
 
+function ProjectAnswers({
+  onProject,
+}: {
+  readonly onProject: (project: ProjectResponse) => void;
+}) {
+  const navigate = useNavigate();
+  const {
+    project,
+    loading: projectLoading,
+    error: projectError,
+  } = useProject(onProject);
+  const [jobs, setJobs] = useState<readonly AnalysisJobResponse[]>([]);
+  const [jobsProjectId, setJobsProjectId] = useState("");
+  const [jobId, setJobId] = useState("");
+  const [job, setJob] = useState<AnalysisJobResponse>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
+  const [model, setModel] = useState("all");
+  const [mention, setMention] = useState("all");
+  const [query, setQuery] = useState("");
+  const [selectedRunId, setSelectedRunId] = useState("");
+  const projectId = project?.id;
+
+  useEffect(() => {
+    if (!projectId) return;
+    let active = true;
+    void api
+      .request<readonly AnalysisJobResponse[]>(
+        `/projects/${projectId}/analysis-jobs`,
+        {},
+        { cache: false },
+      )
+      .then((items) => {
+        if (!active) return;
+        setJobs(items);
+        setJobsProjectId(projectId);
+        setJobId(items[0]?.id ?? "");
+        setLoading(Boolean(items.length));
+      })
+      .catch((caught: unknown) => {
+        if (active) {
+          setJobsProjectId(projectId);
+          setError(messageFor(caught));
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
+
+  const loadJob = useCallback(async () => {
+    if (!jobId || jobsProjectId !== projectId) return;
+    setLoading(true);
+    try {
+      const detail = await api.request<AnalysisJobResponse>(
+        `/analysis-jobs/${jobId}`,
+        {},
+        { cache: false },
+      );
+      setJob(detail);
+      setError(undefined);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [jobId, jobsProjectId, projectId]);
+  useEffect(() => {
+    const timer = globalThis.setTimeout(() => void loadJob(), 0);
+    return () => globalThis.clearTimeout(timer);
+  }, [loadJob]);
+
+  const visibleJobs = jobsProjectId === projectId ? jobs : [];
+  const activeJob = visibleJobs.some((item) => item.id === job?.id)
+    ? job
+    : undefined;
+  const runs = activeJob?.runs ?? [];
+  const models = [
+    ...new Set(
+      runs.map((run) => run.modelConfigVersion.modelConfig.displayName),
+    ),
+  ];
+  const filtered = runs.filter((run) => {
+    const target = run.mentions?.some((item) => item.kind === "target");
+    const parsed = run.parseResult?.validSample && run.status === "succeeded";
+    const matchMention =
+      mention === "all" ||
+      (mention === "mentioned" && target) ||
+      (mention === "not-mentioned" && parsed && !target) ||
+      (mention === "unavailable" && !parsed);
+    return (
+      (model === "all" ||
+        run.modelConfigVersion.modelConfig.displayName === model) &&
+      matchMention &&
+      (run.promptVersion.text
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()) ||
+        run.modelConfigVersion.modelConfig.displayName
+          .toLowerCase()
+          .includes(query.trim().toLowerCase()))
+    );
+  });
+  const selected =
+    filtered.find((run) => run.id === selectedRunId) ?? filtered[0];
+  if (projectLoading || loading || jobsProjectId !== projectId)
+    return <Skeleton lines={7} />;
+  if (projectError || !project || error)
+    return (
+      <StatePanel
+        description={projectError ?? error ?? "项目不存在。"}
+        title="无法加载回答记录"
+        tone="error"
+      />
+    );
+  return (
+    <>
+      <PageHeader
+        actions={
+          <Button intent="secondary" onClick={() => void loadJob()}>
+            刷新记录
+          </Button>
+        }
+        description="按分析任务查看模型原始回答、目标品牌提及与模型返回的引用。记录来自真实模型运行，低置信和部分失败需结合原文复核。"
+        title="大模型回答记录"
+      />
+      {!visibleJobs.length ? (
+        <StatePanel
+          action={
+            <Button onClick={() => navigate(`/projects/${project.id}/reports`)}>
+              前往可见度分析
+            </Button>
+          }
+          description="先在可见度分析页发起一次分析，完成后即可逐条查看回答。"
+          title="暂无回答记录"
+        />
+      ) : (
+        <>
+          <div className="yc-answer-filters">
+            <label>
+              分析任务
+              <select
+                onChange={(event) => {
+                  setJobId(event.target.value);
+                  setSelectedRunId("");
+                }}
+                value={jobId}
+              >
+                {visibleJobs.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {formatDateTime(item.createdAt)} ·{" "}
+                    {jobStatusLabel(item.status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              模型
+              <select
+                onChange={(event) => setModel(event.target.value)}
+                value={model}
+              >
+                <option value="all">全部模型</option>
+                {models.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              提及状态
+              <select
+                onChange={(event) => setMention(event.target.value)}
+                value={mention}
+              >
+                <option value="all">全部状态</option>
+                <option value="mentioned">已提及</option>
+                <option value="not-mentioned">未提及</option>
+                <option value="unavailable">未得出结论</option>
+              </select>
+            </label>
+            <label>
+              搜索提问
+              <input
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="输入问题或模型"
+                value={query}
+              />
+            </label>
+          </div>
+          {activeJob && activeJob.status !== "completed" && (
+            <StatePanel
+              description={`本任务状态：${jobStatusLabel(activeJob.status)}。已完成的回答可查看；未完成或失败的记录不计入有效结论。`}
+              title="任务结果可能不完整"
+              tone="stale"
+            />
+          )}
+          <div className="yc-answer-layout">
+            <section aria-label="回答列表" className="yc-answer-list yc-card">
+              <div className="yc-answer-list__heading">
+                {filtered.length} 条回答
+              </div>
+              {filtered.length ? (
+                filtered.map((run) => {
+                  const target = run.mentions?.some(
+                    (item) => item.kind === "target",
+                  );
+                  const parsed =
+                    run.parseResult?.validSample && run.status === "succeeded";
+                  const truncated = run.result?.finishReason === "length";
+                  return (
+                    <button
+                      aria-pressed={selected?.id === run.id}
+                      className="yc-answer-list__item"
+                      key={run.id}
+                      onClick={() => setSelectedRunId(run.id)}
+                      type="button"
+                    >
+                      <strong>{run.promptVersion.text}</strong>
+                      <span>
+                        {run.modelConfigVersion.modelConfig.displayName} ·{" "}
+                        {truncated
+                          ? "回答不完整"
+                          : target && parsed
+                            ? "已提及"
+                            : parsed
+                              ? "未提及"
+                              : jobStatusLabel(run.status)}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="yc-meta yc-answer-empty">
+                  没有符合筛选条件的回答。
+                </p>
+              )}
+            </section>
+            <section aria-label="回答详情" className="yc-answer-detail yc-card">
+              {selected ? (
+                <>
+                  <div className="yc-section-heading">
+                    <div>
+                      <h2>{selected.promptVersion.text}</h2>
+                      <p>
+                        {selected.modelConfigVersion.modelConfig.displayName}
+                        {selected.completedAt
+                          ? ` · ${formatDateTime(selected.completedAt)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      tone={
+                        selected.result?.finishReason === "length"
+                          ? "warning"
+                          : selected.parseResult?.validSample &&
+                              selected.mentions?.some(
+                                (item) => item.kind === "target",
+                              )
+                            ? "success"
+                            : "neutral"
+                      }
+                    >
+                      {selected.result?.finishReason === "length"
+                        ? "回答不完整"
+                        : selected.parseResult?.validSample &&
+                            selected.mentions?.some(
+                              (item) => item.kind === "target",
+                            )
+                          ? "已提及"
+                          : selected.parseResult?.validSample
+                            ? "未提及"
+                            : "未得出结论"}
+                    </StatusBadge>
+                  </div>
+                  {selected.result?.finishReason === "length" && (
+                    <StatePanel
+                      description="模型回答达到输出上限，正文未完整；本条不会计入评分样本。请缩小问题范围后重新分析。"
+                      title="回答不完整"
+                      tone="stale"
+                    />
+                  )}
+                  {(selected.parseResult?.validSample ? selected.mentions : [])
+                    ?.filter((item) => item.kind === "target")
+                    .map((item, index) => (
+                      <p
+                        className="yc-inline-note"
+                        key={`${item.rawName}-${index}`}
+                      >
+                        <strong>
+                          {item.rawName}
+                          {item.rank ? ` · 排名 ${item.rank}` : ""}
+                        </strong>
+                        <span>
+                          {item.evidenceSnippet} · 解析置信度 {item.confidence}
+                        </span>
+                      </p>
+                    ))}
+                  <h3>模型回答</h3>
+                  {selected.result?.responseText ? (
+                    <div className="yc-answer-text">
+                      {selected.result.responseText}
+                    </div>
+                  ) : (
+                    <StatePanel
+                      description={
+                        selected.result?.responsePurgedAt
+                          ? "正文已按数据保留规则清理。"
+                          : "该运行未产生可展示的回答正文。"
+                      }
+                      title="回答正文不可查看"
+                    />
+                  )}
+                  <h3>参考资料</h3>
+                  {selected.result?.citations?.length ? (
+                    <ol className="yc-answer-citations">
+                      {selected.result.citations.map((citation, index) => {
+                        const href = safeExternalUrl(citation.url);
+                        return (
+                          <li key={`${citation.url}-${index}`}>
+                            {href ? (
+                              <a
+                                href={href}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                              >
+                                {citation.title || href}
+                              </a>
+                            ) : (
+                              citation.title || "无效来源链接"
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  ) : (
+                    <p className="yc-meta">
+                      本次模型回答没有返回可用的引用链接。
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="yc-meta">选择左侧记录查看原文与来源。</p>
+              )}
+            </section>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function safeExternalUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.href
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function ProjectHistory({
   onProject,
 }: {
@@ -2937,7 +3696,7 @@ function ProjectHistory({
               key: "score",
               label: "总分 / 置信度",
               render: (row: ReportVersionResponse) =>
-                `${row.contentSnapshot.overallScore.toFixed(1)} / ${row.contentSnapshot.confidence.toFixed(1)}`,
+                `${formatScore(row.contentSnapshot.overallScore)} / ${formatScore(row.contentSnapshot.confidence)}`,
             },
             {
               key: "scoreVersion",
@@ -3207,7 +3966,7 @@ function ProjectAssistant({
       )}
       <section className="yc-card yc-section-card yc-form-card">
         <FormField
-          hint="品牌管家不会修改项目、创建任务或调用未注册工具。"
+          hint="回答只参考当前项目已保存的信息，并展示引用和数据时间。"
           label="向品牌管家提问"
         >
           <textarea
@@ -3377,11 +4136,11 @@ function ProjectReportDetail({
       )}
       <div className="yc-metric-grid">
         <article>
-          <strong>{report.contentSnapshot.overallScore.toFixed(1)}</strong>
+          <strong>{formatScore(report.contentSnapshot.overallScore)}</strong>
           <span>总分</span>
         </article>
         <article>
-          <strong>{report.contentSnapshot.confidence.toFixed(1)}</strong>
+          <strong>{formatScore(report.contentSnapshot.confidence)}</strong>
           <span>置信度</span>
         </article>
         <article>

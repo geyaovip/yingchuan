@@ -1547,12 +1547,9 @@ function AdminDailyReports() {
                         : `${row.snapshot.analysisSuccessRate.toFixed(2)}%`}
                     </small>
                     <small className="yc-table-secondary">
-                      付费用户{" "}
-                      {row.snapshot.paidUsers ??
-                        row.snapshot.paidUsersUnavailableReason}{" "}
-                      · 收入{" "}
+                      付费用户 {row.snapshot.paidUsers ?? "未接入"} · 收入{" "}
                       {row.snapshot.revenueMicros === null
-                        ? row.snapshot.revenueUnavailableReason
+                        ? "未接入"
                         : adminFormatMicros(BigInt(row.snapshot.revenueMicros))}
                     </small>
                   </div>

@@ -1038,6 +1038,7 @@ model ModelRunResult {
   id               String    @id @db.Uuid
   modelRunId       String    @unique @map("model_run_id") @db.Uuid
   responseText     String    @map("response_text") @db.Text
+  finishReason     String?   @map("finish_reason") @db.VarChar(32)
   citations        Json
   inputTokens      Int       @map("input_tokens")
   outputTokens     Int       @map("output_tokens")

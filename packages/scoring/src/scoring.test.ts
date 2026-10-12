@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { parseResponse } from "./parser.js";
 import { calculateScoreV1 } from "./score-v1.js";
+import { isCompleteModelAnswer } from "./scoring-service.js";
+
+describe("model answer completeness", () => {
+  it("excludes answers cut off by a provider output limit from scoring", () => {
+    expect(isCompleteModelAnswer("length")).toBe(false);
+    expect(isCompleteModelAnswer("stop")).toBe(true);
+    expect(isCompleteModelAnswer(null)).toBe(true);
+  });
+});
 
 describe("parser-v1 golden cases", () => {
   it.each([
