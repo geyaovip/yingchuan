@@ -8,10 +8,17 @@
     "npm": ">=10.9.0"
   },
   "overrides": {
+    "@nestjs/swagger": {
+      "js-yaml": "5.4.2"
+    },
     "@redocly/openapi-core": {
       "js-yaml": "4.3.0"
     },
-    "find-my-way": "9.7.0"
+    "deepmerge-ts": "8.0.2",
+    "find-my-way": "9.7.0",
+    "js-yaml": "5.4.2",
+    "mysql2": "3.24.5",
+    "valibot": "1.5.0"
   },
   "workspaces": [
     "apps/*",
