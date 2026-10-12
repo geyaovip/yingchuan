@@ -296,6 +296,26 @@ describe("model gateway administration, estimates and quota", () => {
     expect(BigInt(usage.body.data.balanceMicros)).toBeLessThan(10_000_000n);
   });
 
+  it("makes admin quota adjustments available to analysis reservations", async () => {
+    const before = await read(user, userOrigin)
+      .get(`/api/v1/workspaces/${workspaceId}/usage`)
+      .expect(200);
+    const adjustment = await write(admin, adminOrigin)
+      .post(`/api/v1/admin/workspaces/${workspaceId}/quota-adjustments`)
+      .send({ quantityMicros: "123456", reason: "模型分析额度验收" })
+      .expect(201);
+    expect(adjustment.body.data).toMatchObject({
+      quantityMicros: "123456",
+      resourceType: "model_cost",
+    });
+    const after = await read(user, userOrigin)
+      .get(`/api/v1/workspaces/${workspaceId}/usage`)
+      .expect(200);
+    expect(BigInt(after.body.data.balanceMicros)).toBe(
+      BigInt(before.body.data.balanceMicros) + 123456n,
+    );
+  });
+
   it("probes a disabled saved model with sanitized logs and audit", async () => {
     const provider = (
       await read(admin, adminOrigin)

@@ -10,7 +10,10 @@ import {
   type Prisma,
   type PrismaClient,
 } from "@yingchuan/database";
-import { ModelGatewayError } from "@yingchuan/model-gateway";
+import {
+  ANALYSIS_OUTPUT_TOKEN_LIMIT,
+  ModelGatewayError,
+} from "@yingchuan/model-gateway";
 import type { ModelGatewayApplicationService } from "@yingchuan/model-gateway";
 import { getRequestContext } from "@yingchuan/observability";
 import { v7 as uuidv7 } from "uuid";
@@ -40,6 +43,8 @@ const jobInclude = {
         },
       },
       promptVersion: { select: { category: true, text: true } },
+      mentions: { orderBy: { createdAt: "asc" as const } },
+      parseResult: true,
       result: true,
     },
     orderBy: { createdAt: "asc" as const },
@@ -451,6 +456,7 @@ export class AnalysisApplicationService {
               }
             : undefined,
           projectId: run.analysisJob.projectId,
+          maxOutputTokens: ANALYSIS_OUTPUT_TOKEN_LIMIT,
           prompt: run.promptTextSnapshot,
           requestId: `model-run-${run.id}-attempt-${attempt.attemptNumber}`,
           workspaceId: run.analysisJob.workspaceId,
@@ -466,6 +472,7 @@ export class AnalysisApplicationService {
           create: {
             citations: response.citations as unknown as Prisma.InputJsonValue,
             costMicros: cost,
+            finishReason: response.finishReason,
             id: uuidv7(),
             inputTokens: response.inputTokens,
             modelRunId: run.id,

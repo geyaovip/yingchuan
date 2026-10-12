@@ -1,3 +1,5 @@
+export const ANALYSIS_OUTPUT_TOKEN_LIMIT = 2048;
+
 export type ModelGatewayErrorCategory =
   | "authentication"
   | "rate_limit"
@@ -28,6 +30,7 @@ export interface ModelGatewayCitation {
 
 export interface ModelGatewayResponse {
   readonly citations: readonly ModelGatewayCitation[];
+  readonly finishReason?: string;
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly providerRequestId?: string;

@@ -2,24 +2,24 @@
 
 ## 1. 设计方向
 
-视觉参考 2026-07-22 的 Perplexity Web：首页采用克制的暖白画布、低对比侧栏、近黑正文、细边框、少阴影、胶囊控制和大留白；桌面端把主任务集中在内容区，移动端收起侧栏并把主要输入放在底部易触达位置。
+2026-10-12 起，视觉结构参考 AnswerBit 的公开官网、用户指南与产品介绍 PPT：蓝紫强调、浅灰蓝画布、白色卡片、按业务域分组的左侧导航、首屏指标与就近筛选。桌面端把主任务集中在内容区，移动端收起侧栏。
 
-映川只借鉴信息层级、留白和自适应思路，使用自己的品牌色、图标、文案、数据组件和交互，不复制 Perplexity 的商标或独特界面资产。
+映川使用自己的名称、图标、文案和数据组件，不复制腾讯商标或独特界面资产；未有真实数据的趋势、排行、文章与发布入口不得为视觉对齐而加入正式页面。功能边界见 `answerbit-benchmark-2026-10-12.md`。
 
 ## 2. Design Tokens 初始值
 
 ```css
 :root {
-  --yc-bg: #faf9f6;
+  --yc-bg: #f6f8fc;
   --yc-surface: #ffffff;
-  --yc-surface-subtle: #f3f2ee;
-  --yc-text: #27251e;
-  --yc-text-secondary: #6f6b63;
-  --yc-border: rgba(39, 26, 0, 0.12);
-  --yc-border-subtle: rgba(39, 26, 0, 0.07);
-  --yc-brand: #147d86;
-  --yc-brand-hover: #0f6971;
-  --yc-brand-soft: #e7f3f3;
+  --yc-surface-subtle: #f8f9fd;
+  --yc-text: #20243a;
+  --yc-text-secondary: #647084;
+  --yc-border: rgba(43, 53, 88, 0.17);
+  --yc-border-subtle: rgba(43, 53, 88, 0.09);
+  --yc-brand: #6259e8;
+  --yc-brand-hover: #5047cf;
+  --yc-brand-soft: #f0efff;
   --yc-success: #18794e;
   --yc-warning: #9a6700;
   --yc-danger: #c13c37;
@@ -27,11 +27,11 @@
 
   --yc-radius-sm: 6px;
   --yc-radius-md: 10px;
-  --yc-radius-lg: 14px;
+  --yc-radius-lg: 16px;
   --yc-radius-pill: 9999px;
 
   --yc-shadow-card: 0 1px 1px rgba(28, 25, 23, 0.025);
-  --yc-sidebar-width: 224px;
+  --yc-sidebar-width: 248px;
   --yc-content-max: 1280px;
 }
 ```
@@ -42,7 +42,7 @@
 
 ### 桌面端（≥ 1200px）
 
-- 固定 224px 左侧导航；内容区独立滚动。
+- 固定 248px 左侧导航；内容区独立滚动。
 - 页面内容最大宽度 1280px，左右留白至少 24px。
 - 概览页使用 12 列网格；核心总分和异常优先于辅助统计。
 - 过滤器、时间范围和主要操作保持在页面标题区，不堆积多层工具栏。

@@ -29,7 +29,9 @@ describe("VolcengineArkAdapter", () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
         JSON.stringify({
-          choices: [{ message: { content: "这是模型回答" } }],
+          choices: [
+            { finish_reason: "length", message: { content: "这是模型回答" } },
+          ],
           id: "ark-request-1",
           usage: { completion_tokens: 9, prompt_tokens: 7 },
         }),
@@ -41,6 +43,7 @@ describe("VolcengineArkAdapter", () => {
       "credential-value",
     );
     expect(result).toMatchObject({
+      finishReason: "length",
       inputTokens: 7,
       outputTokens: 9,
       providerRequestId: "ark-request-1",
@@ -125,6 +128,40 @@ describe("VolcengineArkAdapter", () => {
       tools: unknown[];
     };
     expect(body.tools).toEqual([{ type: "web_search" }]);
+  });
+
+  it("uses the documented fast non-thinking mode for Doubao 2.1 Turbo chat answers", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ choices: [{ message: { content: "回答" } }] }),
+            { status: 200 },
+          ),
+        ),
+      );
+    const adapter = new VolcengineArkAdapter(fetcher);
+    await adapter.invoke(
+      { ...request, modelCode: "doubao-seed-2-1-turbo-260628" },
+      "credential-value",
+    );
+    await adapter.invoke(
+      {
+        ...request,
+        modelCode: "doubao-seed-2-1-turbo-260628",
+        nativeWebSearch: {
+          enabled: true,
+          toolConfig: { type: "web_search" },
+          toolVersion: "ark-web-v1",
+        },
+      },
+      "credential-value",
+    );
+    const fastBody = JSON.parse(fetcher.mock.calls[0]?.[1]?.body as string);
+    const webBody = JSON.parse(fetcher.mock.calls[1]?.[1]?.body as string);
+    expect(fastBody.thinking).toEqual({ type: "disabled" });
+    expect(webBody.thinking).toBeUndefined();
   });
 
   it("extracts and deduplicates Responses API URL citations", async () => {

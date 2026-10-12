@@ -17,6 +17,7 @@ import { getRequestContext } from "@yingchuan/observability";
 import { v7 as uuidv7 } from "uuid";
 
 import {
+  ANALYSIS_OUTPUT_TOKEN_LIMIT,
   ModelGatewayError,
   type ModelGatewayRequest,
   type ModelGatewayResponse,
@@ -424,7 +425,7 @@ export class ModelGatewayApplicationService {
           1,
           Math.ceil(promptVersion.text.length / 2),
         );
-        const outputTokens = 800;
+        const outputTokens = ANALYSIS_OUTPUT_TOKEN_LIMIT;
         const unsupported =
           promptVersion.requiresWebSearch && !version.nativeWebSearch;
         const estimated = unsupported

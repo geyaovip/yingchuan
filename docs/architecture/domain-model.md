@@ -145,6 +145,8 @@ EntityMention 保留 `rawName`、推荐/顺位、情感与证据片段；归一�
 
 用量采用追加式账本：`workspaceId, userId?, projectId?, resourceType, quantity, unitCost, currency, source, relatedJobId?, idempotencyKey`。`idempotencyKey` 唯一，冲正使用反向记录而非改旧账。
 
+`ModelRunResult.finishReason` 保存供应商的结束原因；`length` 表示回答受输出上限截断，原文可复核但不计入有效评分样本。
+
 当前实现以 `quantityMicros` 表示 CNY 微元：grant/release/positive adjustment 为正，reservation/debit/negative adjustment 为负。预留在 Serializable 事务内检查净额并写入唯一幂等键；相同键的相同估算返回原记录，参数不同返回 409。
 
 ### AgentRun / AgentAction / AuditLog

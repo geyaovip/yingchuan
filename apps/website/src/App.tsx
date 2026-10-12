@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Target,
 } from "@phosphor-icons/react";
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { capabilities, productUrl, workflow } from "./content";
 
@@ -64,6 +64,9 @@ function Arrow() {
 }
 
 export function App() {
+  const [activeModel, setActiveModel] = useState<(typeof modelRows)[number]>(
+    modelRows[0],
+  );
   return (
     <div className="site-shell">
       <a className="skip-link" href="#main">
@@ -88,17 +91,19 @@ export function App() {
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow">品牌 AI 可见度 / 实时分析</p>
+            <a className="hero-announcement" href="#capabilities">
+              <span>产品介绍</span>
+              了解映川的品牌 AI 可见度分析
+              <Arrow />
+            </a>
             <h1 id="hero-title">
-              看见 AI
+              看清 AI 如何
               <br />
-              如何看见
-              <br />
-              你的品牌
+              <span>回答你的品牌</span>
             </h1>
             <p className="hero-intro">
-              映川持续检测主流大模型如何理解、提及和推荐你的品牌，
-              用可追溯证据定位认知差距，把每个结论变成可执行的增长动作。
+              围绕真实用户问题，分析可用大模型如何理解、提及和推荐你的品牌。
+              从模型回答和引用出发，定位认知差距与下一步行动。
             </p>
             <div className="hero-actions">
               <a className="button button-primary" href={productUrl}>
@@ -117,7 +122,7 @@ export function App() {
               </li>
               <li>
                 <CheckCircle aria-hidden="true" />
-                结果可复现
+                过程可复核
               </li>
               <li>
                 <ChartLineUp aria-hidden="true" />
@@ -126,76 +131,86 @@ export function App() {
             </ul>
           </div>
 
-          <div className="hero-data" aria-label="多模型品牌可见度示例">
-            <div className="data-head">
-              <div>
-                <p>多模型品牌可见度</p>
-                <span>示例数据 · 最近一次检测</span>
-              </div>
-              <span className="live-state">
-                <i aria-hidden="true" />
-                ANALYSIS READY
+          <div className="preview-frame">
+            <div className="preview-toolbar" aria-hidden="true">
+              <span className="preview-dots">
+                <i />
+                <i />
+                <i />
               </span>
+              <span>映川 · 品牌分析示意</span>
             </div>
-
-            <div className="data-labels" aria-hidden="true">
-              <span>模型</span>
-              <span>可见度</span>
-              <span>推荐倾向</span>
-              <span>信息完整度</span>
-              <span>置信区间</span>
-            </div>
-
-            <div className="model-table">
-              {modelRows.map((row) => (
-                <div className="model-row" key={row.model}>
-                  <strong>{row.model}</strong>
-                  <div className="score-cell">
-                    <span>{row.score} / 100</span>
-                    <i
-                      aria-hidden="true"
-                      style={{ "--score": `${row.score}%` } as CSSProperties}
-                    />
-                  </div>
-                  <span>{row.tendency}</span>
-                  <span
-                    className="dot-score"
-                    aria-label={`${row.completeness} / 5`}
-                  >
-                    {[1, 2, 3, 4, 5].map((dot) => (
-                      <i
-                        className={dot <= row.completeness ? "is-on" : ""}
-                        key={dot}
-                        aria-hidden="true"
-                      />
-                    ))}
-                  </span>
-                  <span>{row.confidence}</span>
+            <div className="hero-data" aria-label="多模型品牌可见度示例">
+              <div className="data-head">
+                <div>
+                  <p>多模型品牌可见度</p>
+                  <span>界面示意 · 非真实检测结果</span>
                 </div>
-              ))}
-            </div>
-
-            <div className="trend-panel">
-              <div>
-                <span>整体可见度</span>
-                <strong>68</strong>
-                <small>/ 100</small>
+                <span className="live-state">
+                  <i aria-hidden="true" />
+                  示例报告
+                </span>
               </div>
-              <div className="trend-bars" aria-label="近五轮检测持续提升">
-                {[34, 48, 42, 61, 68].map((height, index) => (
-                  <i
-                    key={height}
-                    style={{ "--height": `${height}%` } as CSSProperties}
-                    aria-hidden="true"
-                  >
-                    <span>{`0${index + 1}`}</span>
-                  </i>
+
+              <div className="data-labels" aria-hidden="true">
+                <span>模型</span>
+                <span>可见度</span>
+                <span>推荐倾向</span>
+                <span>信息完整度</span>
+                <span>置信区间</span>
+              </div>
+
+              <div className="model-table">
+                {modelRows.map((row) => (
+                  <div className="model-row" key={row.model}>
+                    <strong>{row.model}</strong>
+                    <div className="score-cell">
+                      <span>{row.score} / 100</span>
+                      <i
+                        aria-hidden="true"
+                        style={{ "--score": `${row.score}%` } as CSSProperties}
+                      />
+                    </div>
+                    <span>{row.tendency}</span>
+                    <span
+                      className="dot-score"
+                      aria-label={`${row.completeness} / 5`}
+                    >
+                      {[1, 2, 3, 4, 5].map((dot) => (
+                        <i
+                          className={dot <= row.completeness ? "is-on" : ""}
+                          key={dot}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </span>
+                    <span>{row.confidence}</span>
+                  </div>
                 ))}
               </div>
-              <p>
-                较上一轮 <strong>↑ 7</strong>
-                <span>样本 80 · 有效回答 74</span>
-              </p>
+
+              <div className="trend-panel">
+                <div>
+                  <span>整体可见度</span>
+                  <strong>68</strong>
+                  <small>/ 100</small>
+                </div>
+                <div className="trend-bars" aria-label="五轮示意分数">
+                  {[34, 48, 42, 61, 68].map((height, index) => (
+                    <i
+                      key={height}
+                      style={{ "--height": `${height}%` } as CSSProperties}
+                      aria-hidden="true"
+                    >
+                      <span>{`0${index + 1}`}</span>
+                    </i>
+                  ))}
+                </div>
+                <p>
+                  较上一轮 <strong>↑ 7</strong>
+                  <span>样本 80 · 有效回答 74</span>
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -246,11 +261,11 @@ export function App() {
 
         <section className="evidence-section" id="evidence">
           <div className="evidence-copy">
-            <p className="section-label">03 / 证据体系 · 示例数据</p>
+            <p className="section-label">03 / 证据体系 · 界面示意</p>
             <h2>先展示证据，再给结论</h2>
             <p>
-              每次检测都保留问题、回答、模型、时间与来源。
-              你看到的不只是一个漂亮分数，而是能被团队复核的决策依据。
+              分析结果记录问题、模型回答、时间与官方返回的引用。
+              下面的数据和回答仅用于说明界面，不代表真实检测结果。
             </p>
             <dl>
               <div>
@@ -269,13 +284,26 @@ export function App() {
           </div>
 
           <div className="evidence-view">
-            <div className="evidence-tabs" aria-label="模型回答示例">
-              <span className="is-active">豆包</span>
-              <span>Kimi</span>
-              <span>GLM</span>
-              <span>DeepSeek</span>
+            <div
+              className="evidence-tabs"
+              role="group"
+              aria-label="切换模型回答示意"
+            >
+              {modelRows.map((model) => (
+                <button
+                  aria-pressed={activeModel.model === model.model}
+                  className={
+                    activeModel.model === model.model ? "is-active" : ""
+                  }
+                  key={model.model}
+                  onClick={() => setActiveModel(model)}
+                  type="button"
+                >
+                  {model.model}
+                </button>
+              ))}
             </div>
-            <div className="question-block">
+            <div className="question-block" id="demo-answer">
               <Quotes aria-hidden="true" />
               <div>
                 <span>用户问题</span>
@@ -283,33 +311,33 @@ export function App() {
               </div>
               <p className="evidence-score">
                 <span>可见度评分</span>
-                <strong>78</strong> / 100
+                <strong>{activeModel.score}</strong> / 100
               </p>
             </div>
             <div className="answer-block">
-              <span>模型回答 · 节选</span>
+              <span>{activeModel.model} · 回答示意</span>
               <p>
-                映川聚焦品牌在 AI 问答中的认知表现，能够跨模型检测品牌提及、
-                推荐倾向和事实完整度，并保留可回溯的证据链。
+                这个示意回答展示如何按模型查看品牌提及、推荐倾向和来源。
+                正式报告以实际模型回答为准。
               </p>
             </div>
             <div className="source-list">
-              <span>引用来源</span>
+              <span>来源类型示意 · 非真实引用</span>
               <ol>
                 <li>
                   <strong>01</strong>
                   品牌官网 · 产品能力说明
-                  <span>已验证</span>
+                  <span>示意</span>
                 </li>
                 <li>
                   <strong>02</strong>
                   行业报告 · AI 搜索趋势
-                  <span>已验证</span>
+                  <span>示意</span>
                 </li>
                 <li>
                   <strong>03</strong>
                   公开评测 · 品牌认知对比
-                  <span>已验证</span>
+                  <span>示意</span>
                 </li>
               </ol>
             </div>
@@ -332,7 +360,7 @@ export function App() {
         <a className="wordmark" href="/" aria-label="映川首页">
           <Wordmark />
         </a>
-        <p>AI 品牌可见度分析与持续运营管理平台</p>
+        <p>AI 品牌可见度分析平台</p>
         <a href={productUrl}>用户工作台</a>
         <span>© {new Date().getFullYear()} 映川</span>
       </footer>
