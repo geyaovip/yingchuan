@@ -488,7 +488,7 @@ function ModelManagement() {
             <section className="yc-card yc-section-card">
               <h2>{provider.name}</h2>
               <p>
-                Provider <code>{provider.code}</code> · 凭证
+                供应商标识 <code>{provider.code}</code> · 凭证
                 {provider.credentialConfigured
                   ? `已配置（${provider.credential?.maskedHint ?? "已加密"}）`
                   : "未配置"}
@@ -522,9 +522,7 @@ function ModelManagement() {
                     )
                   }
                 >
-                  {provider.status === "enabled"
-                    ? "停用 Provider"
-                    : "启用 Provider"}
+                  {provider.status === "enabled" ? "停用供应商" : "启用供应商"}
                 </Button>
               </div>
             </section>
@@ -1565,7 +1563,7 @@ function AdminDailyReports() {
         <Skeleton lines={6} />
       ) : rows.length === 0 ? (
         <StatePanel
-          description="首份日报将在下一个北京时间 09:00 调度窗口生成。"
+          description="每天 09:00（北京时间）自动生成，首份日报会在下一次生成后显示。"
           title="暂无运营日报"
         />
       ) : (
