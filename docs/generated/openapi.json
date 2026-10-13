@@ -37,6 +37,112 @@
         "tags": ["App"]
       }
     },
+    "/api/v1/projects/{projectId}/insights": {
+      "get": {
+        "operationId": "MonitoringController_getInsights",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/monitoring": {
+      "get": {
+        "operationId": "MonitoringController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/monitoring/estimate": {
+      "post": {
+        "operationId": "MonitoringController_estimate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/monitoring/schedules": {
+      "post": {
+        "operationId": "MonitoringController_createSchedule",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/monitoring/schedules/{scheduleId}": {
+      "patch": {
+        "operationId": "MonitoringController_setSchedule",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/optimization-tasks": {
+      "get": {
+        "operationId": "MonitoringController_tasks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      },
+      "post": {
+        "operationId": "MonitoringController_createTask",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/optimization-tasks/{taskId}": {
+      "patch": {
+        "operationId": "MonitoringController_updateTask",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
+    "/api/v1/projects/{projectId}/optimization-tasks/{taskId}/retests": {
+      "post": {
+        "operationId": "MonitoringController_retest",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Monitoring"]
+      }
+    },
     "/api/v1/auth/email-code-requests": {
       "post": {
         "operationId": "AuthController_requestEmailCode",
@@ -107,6 +213,184 @@
           }
         },
         "tags": ["Auth"]
+      }
+    },
+    "/api/v1/projects/{projectId}/analysis-jobs": {
+      "post": {
+        "operationId": "AnalysisController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      },
+      "get": {
+        "operationId": "AnalysisController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}": {
+      "get": {
+        "operationId": "AnalysisController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}/model-runs": {
+      "get": {
+        "operationId": "AnalysisController_runs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}/cancellation": {
+      "post": {
+        "operationId": "AnalysisController_cancel",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/analysis-jobs/{jobId}/retries": {
+      "post": {
+        "operationId": "AnalysisController_retry",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Analysis"]
+      }
+    },
+    "/api/v1/admin/model-providers": {
+      "get": {
+        "operationId": "ModelController_providers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-calls": {
+      "get": {
+        "operationId": "ModelController_calls",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-providers/{providerId}/status": {
+      "patch": {
+        "operationId": "ModelController_providerStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-providers/{providerId}/credential": {
+      "put": {
+        "operationId": "ModelController_credential",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-configs/{modelConfigId}": {
+      "put": {
+        "operationId": "ModelController_modelConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/admin/model-configs/{modelConfigId}/probe": {
+      "post": {
+        "operationId": "ModelController_probeModelConfig",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/projects/{projectId}/analysis-estimates": {
+      "post": {
+        "operationId": "ModelController_estimate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/projects/{projectId}/usage-reservations": {
+      "post": {
+        "operationId": "ModelController_reserve",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/usage": {
+      "get": {
+        "operationId": "ModelController_usage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": ["Model"]
       }
     },
     "/api/v1/workspaces": {
@@ -485,184 +769,6 @@
           }
         },
         "tags": ["Prompt"]
-      }
-    },
-    "/api/v1/admin/model-providers": {
-      "get": {
-        "operationId": "ModelController_providers",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/admin/model-calls": {
-      "get": {
-        "operationId": "ModelController_calls",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/admin/model-providers/{providerId}/status": {
-      "patch": {
-        "operationId": "ModelController_providerStatus",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/admin/model-providers/{providerId}/credential": {
-      "put": {
-        "operationId": "ModelController_credential",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/admin/model-configs/{modelConfigId}": {
-      "put": {
-        "operationId": "ModelController_modelConfig",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/admin/model-configs/{modelConfigId}/probe": {
-      "post": {
-        "operationId": "ModelController_probeModelConfig",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/projects/{projectId}/analysis-estimates": {
-      "post": {
-        "operationId": "ModelController_estimate",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/projects/{projectId}/usage-reservations": {
-      "post": {
-        "operationId": "ModelController_reserve",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/workspaces/{workspaceId}/usage": {
-      "get": {
-        "operationId": "ModelController_usage",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Model"]
-      }
-    },
-    "/api/v1/projects/{projectId}/analysis-jobs": {
-      "post": {
-        "operationId": "AnalysisController_create",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": ["Analysis"]
-      },
-      "get": {
-        "operationId": "AnalysisController_list",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Analysis"]
-      }
-    },
-    "/api/v1/analysis-jobs/{jobId}": {
-      "get": {
-        "operationId": "AnalysisController_get",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Analysis"]
-      }
-    },
-    "/api/v1/analysis-jobs/{jobId}/model-runs": {
-      "get": {
-        "operationId": "AnalysisController_runs",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": ["Analysis"]
-      }
-    },
-    "/api/v1/analysis-jobs/{jobId}/cancellation": {
-      "post": {
-        "operationId": "AnalysisController_cancel",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": ["Analysis"]
-      }
-    },
-    "/api/v1/analysis-jobs/{jobId}/retries": {
-      "post": {
-        "operationId": "AnalysisController_retry",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": ["Analysis"]
       }
     },
     "/api/v1/projects/{projectId}/scores": {

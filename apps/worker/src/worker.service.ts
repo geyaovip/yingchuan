@@ -4,7 +4,10 @@ import {
   type OnModuleInit,
 } from "@nestjs/common";
 import { writeFile } from "node:fs/promises";
-import { AnalysisApplicationService } from "@yingchuan/analysis";
+import {
+  MonitoringApplicationService,
+  AnalysisApplicationService,
+} from "@yingchuan/analysis";
 import { createDatabaseClient, type PrismaClient } from "@yingchuan/database";
 import { DataLifecycleApplicationService } from "@yingchuan/data-lifecycle";
 import { createServiceLogger } from "@yingchuan/observability";
@@ -51,6 +54,8 @@ export async function writeWorkerHeartbeat(
 @Injectable()
 export class WorkerService implements OnModuleInit, OnApplicationShutdown {
   private database?: PrismaClient;
+  private monitoringScheduler?: NodeJS.Timeout;
+  private monitoringRunning = false;
   private alertScheduler?: NodeJS.Timeout;
   private dailyReportScheduler?: NodeJS.Timeout;
   private dispatcher?: NodeJS.Timeout;
@@ -88,6 +93,33 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
       new VolcengineArkAdapter(),
     );
     const analysis = new AnalysisApplicationService(this.database, gateway);
+    const monitoring = new MonitoringApplicationService(
+      this.database,
+      gateway,
+      analysis,
+    );
+    const runMonitoring = async () => {
+      if (this.monitoringRunning) return;
+      this.monitoringRunning = true;
+      try {
+        await monitoring.runDue();
+      } catch (error) {
+        logger.error(
+          {
+            errorCode: "MONITORING_SCHEDULER_FAILED",
+            errorType: error instanceof Error ? error.name : "UnknownError",
+          },
+          "monitoring_scheduler_failed",
+        );
+      } finally {
+        this.monitoringRunning = false;
+      }
+    };
+    this.monitoringScheduler = setInterval(() => {
+      void runMonitoring();
+    }, 60_000);
+    this.monitoringScheduler.unref();
+    void runMonitoring();
     const scoring = new ScoringApplicationService(this.database);
     const reports = new ReportApplicationService(this.database);
     const notificationSecretBox = new SecretBox(
@@ -251,6 +283,7 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
   }
 
   async onApplicationShutdown(): Promise<void> {
+    if (this.monitoringScheduler) clearInterval(this.monitoringScheduler);
     if (this.dispatcher) clearInterval(this.dispatcher);
     if (this.alertScheduler) clearInterval(this.alertScheduler);
     if (this.dailyReportScheduler) clearInterval(this.dailyReportScheduler);

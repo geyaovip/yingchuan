@@ -24,6 +24,12 @@ import {
 
 import { api } from "./api";
 import {
+  InsightSummary,
+  InsightsPage,
+  MonitoringPage,
+  OptimizationTasksPage,
+} from "./MonitoringPages";
+import {
   hasProjectCapability,
   onboardingIsComplete,
   projectNavigation,
@@ -194,6 +200,7 @@ interface CompetitorResponse {
 
 interface ReportVersionResponse {
   readonly contentSnapshot: {
+    readonly analysisJobId: string;
     readonly confidence: number | string;
     readonly failedRuns: number;
     readonly modelBreakdown: readonly {
@@ -547,6 +554,24 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
           <Route
             path="/projects/:projectId/overview"
             element={<ProjectOverview onProject={setActiveProject} />}
+          />
+          <Route
+            path="/projects/:projectId/insights"
+            element={
+              <ProjectFeature kind="insights" onProject={setActiveProject} />
+            }
+          />
+          <Route
+            path="/projects/:projectId/monitoring"
+            element={
+              <ProjectFeature kind="monitoring" onProject={setActiveProject} />
+            }
+          />
+          <Route
+            path="/projects/:projectId/optimization-tasks"
+            element={
+              <ProjectFeature kind="tasks" onProject={setActiveProject} />
+            }
           />
           <Route
             path="/projects/:projectId/brand"
@@ -1647,6 +1672,30 @@ function ProjectOnboarding({
   );
 }
 
+function ProjectFeature({
+  kind,
+  onProject,
+}: {
+  readonly kind: "insights" | "monitoring" | "tasks";
+  readonly onProject: (project: ProjectResponse) => void;
+}) {
+  const { project, loading, error } = useProject(onProject);
+  if (loading) return <Skeleton lines={6} />;
+  if (error || !project)
+    return (
+      <StatePanel
+        title="无法加载项目"
+        description={error ?? "项目不存在。"}
+        tone="error"
+      />
+    );
+  if (kind === "insights")
+    return <InsightsPage key={project.id} projectId={project.id} />;
+  if (kind === "monitoring")
+    return <MonitoringPage key={project.id} projectId={project.id} />;
+  return <OptimizationTasksPage key={project.id} projectId={project.id} />;
+}
+
 function ProjectOverview({
   onProject,
 }: {
@@ -1704,6 +1753,7 @@ function ProjectOverview({
         }
         title={project.name}
       />
+      <InsightSummary key={project.id} projectId={project.id} />
       {summaryError && (
         <StatePanel
           description={summaryError}
@@ -3367,6 +3417,10 @@ function ProjectAnswers({
     error: projectError,
   } = useProject(onProject);
   const [jobs, setJobs] = useState<readonly AnalysisJobResponse[]>([]);
+  const answerLocation = useLocation();
+  const answerQuery = new URLSearchParams(answerLocation.search);
+  const initialJobId = answerQuery.get("jobId");
+  const initialRunId = answerQuery.get("runId") ?? "";
   const [jobsProjectId, setJobsProjectId] = useState("");
   const [jobId, setJobId] = useState("");
   const [job, setJob] = useState<AnalysisJobResponse>();
@@ -3375,7 +3429,7 @@ function ProjectAnswers({
   const [model, setModel] = useState("all");
   const [mention, setMention] = useState("all");
   const [query, setQuery] = useState("");
-  const [selectedRunId, setSelectedRunId] = useState("");
+  const [selectedRunId, setSelectedRunId] = useState(initialRunId);
   const projectId = project?.id;
 
   useEffect(() => {
@@ -3391,7 +3445,11 @@ function ProjectAnswers({
         if (!active) return;
         setJobs(items);
         setJobsProjectId(projectId);
-        setJobId(items[0]?.id ?? "");
+        setJobId(
+          items.find((item) => item.id === initialJobId)?.id ??
+            items[0]?.id ??
+            "",
+        );
         setLoading(Boolean(items.length));
       })
       .catch((caught: unknown) => {
@@ -3404,7 +3462,7 @@ function ProjectAnswers({
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, initialJobId]);
 
   const loadJob = useCallback(async () => {
     if (!jobId || jobsProjectId !== projectId) return;
@@ -3946,6 +4004,24 @@ function ProjectOptimization({
                 render: (
                   row: ReportVersionResponse["recommendations"][number],
                 ) => recommendationEffortLabel(row.effort),
+              },
+              {
+                key: "task",
+                label: "操作",
+                render: (
+                  row: ReportVersionResponse["recommendations"][number],
+                ) => (
+                  <Button
+                    intent="ghost"
+                    onClick={() =>
+                      navigate(
+                        `/projects/${project.id}/optimization-tasks?${new URLSearchParams({ title: recommendationTitle(row.title, row.category), description: recommendationDescription(row.description, row.category), baseline: report.contentSnapshot.analysisJobId })}`,
+                      )
+                    }
+                  >
+                    创建任务
+                  </Button>
+                ),
               },
               {
                 key: "category",

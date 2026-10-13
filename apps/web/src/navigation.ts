@@ -26,10 +26,13 @@ const alwaysVisible: readonly NavigationItem[] = [
   { href: "/brand", icon: "brand", label: "品牌信息" },
   { href: "/competitors", icon: "competitors", label: "竞品" },
   { href: "/reports", icon: "reports", group: "数据", label: "可见度分析" },
+  { href: "/insights", icon: "dashboard", label: "数据洞察" },
   { href: "/answers", icon: "answers", label: "大模型回答记录" },
   { href: "/history", icon: "history", label: "历史报告" },
   { href: "/sources", icon: "sources", group: "优化", label: "认知源" },
   { href: "/optimization", icon: "optimization", label: "优化建议" },
+  { href: "/optimization-tasks", icon: "optimization", label: "优化任务" },
+  { href: "/monitoring", icon: "history", group: "配置", label: "监测计划" },
   { href: "/settings", icon: "settings", group: "配置", label: "项目设置" },
 ];
 

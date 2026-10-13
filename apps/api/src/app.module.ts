@@ -1,3 +1,4 @@
+import { MonitoringModule } from "./monitoring/monitoring.module.js";
 import { Module } from "@nestjs/common";
 
 import { AuditModule } from "./audit/audit.module.js";
@@ -20,6 +21,7 @@ import { LifecycleModule } from "./lifecycle/lifecycle.module.js";
 
 @Module({
   imports: [
+    MonitoringModule,
     DatabaseModule,
     AuthModule,
     WorkspaceModule,

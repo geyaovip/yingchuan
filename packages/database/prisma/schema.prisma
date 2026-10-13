@@ -325,6 +325,9 @@ model User {
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
   version         Int        @default(1)
 
+  monitoringSchedules   MonitoringSchedule[]
+  optimizationCreated   OptimizationTask[]       @relation("OptimizationCreator")
+  optimizationAssigned  OptimizationTask[]       @relation("OptimizationAssignee")
   sessions              AuthSession[]
   memberships           WorkspaceMembership[]
   invitationsCreated    WorkspaceInvitation[]    @relation("InvitationCreator")
@@ -536,19 +539,21 @@ model Project {
   updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   version          Int              @default(1)
 
-  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy          User                @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  industry           Industry?           @relation(fields: [industryId], references: [id], onDelete: Restrict)
-  brandEntity        BrandEntity?        @relation(fields: [brandEntityId], references: [id], onDelete: Restrict)
-  brandCandidates    BrandCandidate[]
-  knowledgeSources   KnowledgeSource[]
-  identificationJobs IdentificationJob[]
-  capabilities       ProjectCapability[]
-  prompts            Prompt[]
-  usageLedgerEntries UsageLedgerEntry[]
-  analysisJobs       AnalysisJob[]
-  competitors        Competitor[]
-  report             Report?
+  workspace           Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy           User                 @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  industry            Industry?            @relation(fields: [industryId], references: [id], onDelete: Restrict)
+  brandEntity         BrandEntity?         @relation(fields: [brandEntityId], references: [id], onDelete: Restrict)
+  monitoringSchedules MonitoringSchedule[]
+  optimizationTasks   OptimizationTask[]
+  brandCandidates     BrandCandidate[]
+  knowledgeSources    KnowledgeSource[]
+  identificationJobs  IdentificationJob[]
+  capabilities        ProjectCapability[]
+  prompts             Prompt[]
+  usageLedgerEntries  UsageLedgerEntry[]
+  analysisJobs        AnalysisJob[]
+  competitors         Competitor[]
+  report              Report?
 
   @@index([workspaceId, status, createdAt])
   @@map("projects")
@@ -968,6 +973,10 @@ model AnalysisJob {
   createdBy   User       @relation("AnalysisJobCreator", fields: [createdById], references: [id], onDelete: Restrict)
   cancelledBy User?      @relation("AnalysisJobCanceller", fields: [cancelledById], references: [id], onDelete: Restrict)
   runs        ModelRun[]
+
+  monitoringExecutions  MonitoringExecution[]
+  optimizationBaselines OptimizationTask[]
+  optimizationRetests   OptimizationRetest[]
 
   @@index([projectId, createdAt])
   @@index([workspaceId, status, createdAt])
@@ -1573,4 +1582,110 @@ model InboxReceipt {
 
   @@unique([consumer, eventId])
   @@map("inbox_receipts")
+}
+
+enum MonitoringFrequency {
+  daily
+  weekly
+}
+
+enum MonitoringExecutionStatus {
+  pending
+  running
+  submitted
+  skipped
+  dead_letter
+}
+
+enum OptimizationTaskStatus {
+  open
+  in_progress
+  done
+}
+
+model MonitoringSchedule {
+  idempotencyKey String                @unique @map("idempotency_key") @db.VarChar(200)
+  requestHash    String                @map("request_hash") @db.Char(64)
+  id             String                @id @db.Uuid
+  projectId      String                @map("project_id") @db.Uuid
+  createdById    String                @map("created_by_id") @db.Uuid
+  name           String                @db.VarChar(120)
+  active         Boolean               @default(true)
+  frequency      MonitoringFrequency
+  hour           Int
+  minute         Int
+  weekday        Int                   @default(1)
+  timezone       String                @db.VarChar(100)
+  promptIds      String[]              @map("prompt_ids") @db.Uuid
+  modelConfigIds String[]              @map("model_config_ids") @db.Uuid
+  maxCostMicros  BigInt                @map("max_cost_micros")
+  nextRunAt      DateTime              @map("next_run_at") @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int                   @default(1)
+  project        Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy      User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  executions     MonitoringExecution[]
+
+  @@index([active, nextRunAt])
+  @@map("monitoring_schedules")
+}
+
+model MonitoringExecution {
+  id             String                    @id @db.Uuid
+  scheduleId     String                    @map("schedule_id") @db.Uuid
+  dueAt          DateTime                  @map("due_at") @db.Timestamptz(3)
+  status         MonitoringExecutionStatus @default(pending)
+  attempts       Int                       @default(0)
+  leaseUntil     DateTime?                 @map("lease_until") @db.Timestamptz(3)
+  retryAt        DateTime?                 @map("retry_at") @db.Timestamptz(3)
+  errorCode      String?                   @map("error_code") @db.VarChar(100)
+  analysisJobId  String?                   @unique @map("analysis_job_id") @db.Uuid
+  promptIds      String[]                  @map("prompt_ids") @db.Uuid
+  modelConfigIds String[]                  @map("model_config_ids") @db.Uuid
+  maxCostMicros  BigInt                    @map("max_cost_micros")
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt    DateTime?                 @map("completed_at") @db.Timestamptz(3)
+  schedule       MonitoringSchedule        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  analysisJob    AnalysisJob?              @relation(fields: [analysisJobId], references: [id], onDelete: SetNull)
+
+  @@unique([scheduleId, dueAt])
+  @@index([status, leaseUntil, retryAt])
+  @@map("monitoring_executions")
+}
+
+model OptimizationTask {
+  id            String                 @id @db.Uuid
+  projectId     String                 @map("project_id") @db.Uuid
+  createdById   String                 @map("created_by_id") @db.Uuid
+  assigneeId    String?                @map("assignee_id") @db.Uuid
+  baselineJobId String                 @map("baseline_job_id") @db.Uuid
+  title         String                 @db.VarChar(200)
+  description   String                 @db.VarChar(2000)
+  evidenceUrl   String?                @map("evidence_url") @db.VarChar(2000)
+  status        OptimizationTaskStatus @default(open)
+  dueAt         DateTime?              @map("due_at") @db.Timestamptz(3)
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version       Int                    @default(1)
+  project       Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy     User                   @relation("OptimizationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignee      User?                  @relation("OptimizationAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  baselineJob   AnalysisJob            @relation(fields: [baselineJobId], references: [id], onDelete: Restrict)
+  retests       OptimizationRetest[]
+
+  @@index([projectId, status, createdAt])
+  @@map("optimization_tasks")
+}
+
+model OptimizationRetest {
+  id            String           @id @db.Uuid
+  taskId        String           @map("task_id") @db.Uuid
+  analysisJobId String           @unique @map("analysis_job_id") @db.Uuid
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  task          OptimizationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  analysisJob   AnalysisJob      @relation(fields: [analysisJobId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+  @@map("optimization_retests")
 }

@@ -14,7 +14,10 @@ import {
   ANALYSIS_OUTPUT_TOKEN_LIMIT,
   ModelGatewayError,
 } from "@yingchuan/model-gateway";
-import type { ModelGatewayApplicationService } from "@yingchuan/model-gateway";
+import type {
+  AnalysisSelection,
+  ModelGatewayApplicationService,
+} from "@yingchuan/model-gateway";
 import { getRequestContext } from "@yingchuan/observability";
 import { v7 as uuidv7 } from "uuid";
 
@@ -61,6 +64,7 @@ export class AnalysisApplicationService {
     projectId: string,
     actor: AnalysisActor,
     idempotencyKey: string,
+    selection: AnalysisSelection = {},
   ) {
     if (!idempotencyKey || idempotencyKey.length > 120)
       throw new AnalysisServiceError("IDEMPOTENCY_KEY_REQUIRED", 400);
@@ -68,8 +72,16 @@ export class AnalysisApplicationService {
     const existing = await this.database.analysisJob.findUnique({
       where: { idempotencyKey: key },
     });
-    if (existing) return this.get(existing.id, actor.userId);
-    const estimate = await this.gateway.estimate(projectId, actor.userId);
+    if (existing) {
+      if (existing.projectId !== projectId)
+        throw new AnalysisServiceError("IDEMPOTENCY_CONFLICT", 409);
+      return this.get(existing.id, actor.userId);
+    }
+    const estimate = await this.gateway.estimate(
+      projectId,
+      actor.userId,
+      selection,
+    );
     const eligible = estimate.items.filter(
       (item) => item.status === "eligible",
     );
@@ -81,12 +93,32 @@ export class AnalysisApplicationService {
     const modelVersions = await this.database.modelConfigVersion.findMany({
       where: { id: { in: eligible.map((item) => item.modelVersionId) } },
     });
+    if (
+      selection.maxCostMicros !== undefined &&
+      modelVersions.some(
+        (version) =>
+          version.inputPriceMicrosPerMillion === null ||
+          version.outputPriceMicrosPerMillion === null,
+      )
+    )
+      throw new AnalysisServiceError("MONITORING_PRICE_UNAVAILABLE", 409);
     const promptById = new Map(promptVersions.map((item) => [item.id, item]));
     const modelById = new Map(modelVersions.map((item) => [item.id, item]));
     const project = await this.database.project.findUniqueOrThrow({
       where: { id: projectId },
     });
     const cost = BigInt(estimate.estimatedCostMicros);
+    if (
+      selection.maxCostMicros !== undefined &&
+      cost > BigInt(selection.maxCostMicros)
+    )
+      throw new AnalysisServiceError("MONITORING_BUDGET_EXCEEDED", 409);
+    const frozenRuns = selection.sourceJobId
+      ? await this.database.modelRun.findMany({
+          where: { analysisJobId: selection.sourceJobId },
+          orderBy: { id: "asc" },
+        })
+      : [];
     const jobId = uuidv7();
     const reservationId = uuidv7();
     const context = this.context();
@@ -137,15 +169,22 @@ export class AnalysisApplicationService {
             const model = modelById.get(item.modelVersionId);
             if (!prompt || !model)
               throw new AnalysisServiceError("ANALYSIS_SNAPSHOT_STALE", 409);
-            const scope = {
-              city: prompt.city,
-              country: prompt.country,
-              district: prompt.district,
-              nearbyLandmark: prompt.nearbyLandmark,
-              province: prompt.province,
-              scope: prompt.scope,
-              targetStoreId: prompt.targetStoreId,
-            };
+            const frozen = frozenRuns.find(
+              (run) =>
+                run.promptVersionId === item.promptVersionId &&
+                run.modelConfigVersionId === item.modelVersionId,
+            );
+            const scope = frozen
+              ? frozen.scopeSnapshot
+              : {
+                  city: prompt.city,
+                  country: prompt.country,
+                  district: prompt.district,
+                  nearbyLandmark: prompt.nearbyLandmark,
+                  province: prompt.province,
+                  scope: prompt.scope,
+                  targetStoreId: prompt.targetStoreId,
+                };
             const runId = uuidv7();
             const webConfig = model.webSearchConfig as Record<
               string,
@@ -160,20 +199,23 @@ export class AnalysisApplicationService {
                 inputPriceMicrosPerMillion: model.inputPriceMicrosPerMillion,
                 modelCodeSnapshot: model.modelCode,
                 modelConfigVersionId: model.id,
-                nativeWebSearchEnabled: prompt.requiresWebSearch,
+                nativeWebSearchEnabled:
+                  frozen?.nativeWebSearchEnabled ?? prompt.requiresWebSearch,
                 outputPriceMicrosPerMillion: model.outputPriceMicrosPerMillion,
-                promptTextSnapshot: prompt.text,
+                promptTextSnapshot: frozen?.promptTextSnapshot ?? prompt.text,
                 promptVersionId: prompt.id,
-                scopeHash: this.hash(scope),
-                scopeSnapshot: scope,
-                webSearchConfigSnapshot: webConfig as
-                  Prisma.InputJsonValue | undefined,
+                scopeHash: frozen?.scopeHash ?? this.hash(scope),
+                scopeSnapshot: scope as Prisma.InputJsonValue,
+                sampleIndex: frozen?.sampleIndex ?? 0,
+                webSearchConfigSnapshot: (frozen?.webSearchConfigSnapshot ??
+                  webConfig) as Prisma.InputJsonValue | undefined,
                 webSearchToolVersion:
-                  typeof webConfig?.toolVersion === "string"
+                  frozen?.webSearchToolVersion ??
+                  (typeof webConfig?.toolVersion === "string"
                     ? webConfig.toolVersion
                     : prompt.requiresWebSearch
                       ? "ark-native-web-v1"
-                      : undefined,
+                      : undefined),
               },
             });
             await transaction.outboxEvent.create({
@@ -211,7 +253,11 @@ export class AnalysisApplicationService {
         const raced = await this.database.analysisJob.findUnique({
           where: { idempotencyKey: key },
         });
-        if (raced) return this.get(raced.id, actor.userId);
+        if (raced) {
+          if (raced.projectId !== projectId)
+            throw new AnalysisServiceError("IDEMPOTENCY_CONFLICT", 409);
+          return this.get(raced.id, actor.userId);
+        }
       }
       throw error;
     }

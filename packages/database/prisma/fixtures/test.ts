@@ -67,6 +67,10 @@ const idFor = (group: number, index: number): string =>
 
 async function loadFixtures(): Promise<void> {
   await prisma.$transaction([
+    prisma.optimizationRetest.deleteMany(),
+    prisma.optimizationTask.deleteMany(),
+    prisma.monitoringExecution.deleteMany(),
+    prisma.monitoringSchedule.deleteMany(),
     prisma.dataLifecycleRun.deleteMany(),
     prisma.legalHold.deleteMany(),
     prisma.modelCallLog.deleteMany(),

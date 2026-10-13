@@ -201,7 +201,9 @@ export function App() {
           <div className="evidence-copy">
             <p className="section-label">报告依据</p>
             <h2>先展示证据，再给结论</h2>
-            <p>核对模型回答与引用来源，查看评分依据和结果限制。</p>
+            <p>
+              核对模型回答与引用来源，查看品牌表现。创建每日或每周监测计划，持续跟进优化后的变化。
+            </p>
             <dl>
               <div>
                 <dt>问题</dt>

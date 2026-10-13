@@ -56,6 +56,13 @@ export class ModelGatewayServiceError extends Error {
   }
 }
 
+export interface AnalysisSelection {
+  readonly promptIds?: readonly string[];
+  readonly modelConfigIds?: readonly string[];
+  readonly sourceJobId?: string;
+  readonly maxCostMicros?: string;
+}
+
 export interface AnalysisEstimate {
   readonly currency: string;
   readonly eligibleRunCount: number;
@@ -389,6 +396,7 @@ export class ModelGatewayApplicationService {
   async estimate(
     projectId: string,
     actorId: string,
+    selection: AnalysisSelection = {},
   ): Promise<AnalysisEstimate> {
     const project = await this.requireProjectPermission(
       projectId,
@@ -400,9 +408,18 @@ export class ModelGatewayApplicationService {
       project.status !== ProjectStatus.active
     )
       throw new ModelGatewayServiceError("PROJECT_NOT_READY", 409);
+    if (selection.sourceJobId)
+      return this.estimateFrozen(projectId, selection.sourceJobId);
     const prompts = await this.database.prompt.findMany({
       include: { versions: { orderBy: { versionNumber: "desc" }, take: 1 } },
-      where: { deletedAt: null, enabled: true, projectId },
+      where: {
+        deletedAt: null,
+        enabled: true,
+        projectId,
+        ...(selection.promptIds
+          ? { id: { in: [...selection.promptIds] } }
+          : {}),
+      },
     });
     const models = await this.database.modelConfig.findMany({
       include: modelInclude,
@@ -411,6 +428,21 @@ export class ModelGatewayApplicationService {
         status: ConfigStatus.enabled,
       },
     });
+    if (selection.modelConfigIds) {
+      const ids = new Set(selection.modelConfigIds);
+      for (let i = models.length - 1; i >= 0; i--)
+        if (!ids.has(models[i]!.id)) models.splice(i, 1);
+    }
+    if (
+      (selection.promptIds &&
+        prompts.length !== new Set(selection.promptIds).size) ||
+      (selection.modelConfigIds &&
+        models.length !== new Set(selection.modelConfigIds).size)
+    )
+      throw new ModelGatewayServiceError(
+        "MONITORING_SELECTION_UNAVAILABLE",
+        409,
+      );
     const items: AnalysisEstimate["items"][number][] = [];
     let totalCost = 0n;
     let totalInputTokens = 0;
@@ -457,6 +489,67 @@ export class ModelGatewayApplicationService {
       outputTokenEstimate: totalOutputTokens,
       skippedRunCount: items.filter((item) => item.status === "unsupported")
         .length,
+    };
+  }
+
+  private async estimateFrozen(
+    projectId: string,
+    jobId: string,
+  ): Promise<AnalysisEstimate> {
+    const job = await this.database.analysisJob.findFirst({
+      where: {
+        id: jobId,
+        projectId,
+        status: { in: ["completed", "partially_completed"] },
+      },
+      include: {
+        runs: {
+          include: {
+            promptVersion: true,
+            modelConfigVersion: {
+              include: { modelConfig: { include: { provider: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!job || !job.runs.length)
+      throw new ModelGatewayServiceError("BASELINE_UNAVAILABLE", 409);
+    const items: AnalysisEstimate["items"][number][] = [];
+    let totalCost = 0n,
+      inputTokenEstimate = 0;
+    for (const run of job.runs) {
+      const version = run.modelConfigVersion;
+      if (
+        version.modelConfig.status !== "enabled" ||
+        version.modelConfig.provider.status !== "enabled"
+      )
+        throw new ModelGatewayServiceError(
+          "MONITORING_SELECTION_UNAVAILABLE",
+          409,
+        );
+      const input = Math.max(1, Math.ceil(run.promptTextSnapshot.length / 2));
+      const estimated = this.cost(version, input, ANALYSIS_OUTPUT_TOKEN_LIMIT);
+      totalCost += estimated;
+      inputTokenEstimate += input;
+      items.push({
+        estimatedCostMicros: estimated.toString(),
+        modelConfigId: version.modelConfigId,
+        modelFamily: version.modelConfig.modelFamily,
+        modelVersionId: version.id,
+        promptVersionId: run.promptVersionId,
+        requiresWebSearch: run.nativeWebSearchEnabled,
+        status: "eligible",
+      });
+    }
+    return {
+      currency: "CNY",
+      eligibleRunCount: items.length,
+      estimatedCostMicros: totalCost.toString(),
+      inputTokenEstimate,
+      items,
+      outputTokenEstimate: items.length * ANALYSIS_OUTPUT_TOKEN_LIMIT,
+      skippedRunCount: 0,
     };
   }
 
