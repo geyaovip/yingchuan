@@ -149,6 +149,7 @@ const reasons: Record<string, string> = {
   MONITORING_PAUSED: "计划已暂停",
   MONITORING_SELECTION_UNAVAILABLE: "问题或模型已停用",
   MONITORING_BUDGET_EXCEEDED: "预计费用超过上限",
+  MONITORING_PRICE_UNAVAILABLE: "模型价格未配置",
   ANALYSIS_QUOTA_INSUFFICIENT: "可用额度不足",
   ANALYSIS_HAS_NO_ELIGIBLE_RUNS: "没有可执行的组合",
   MONITORING_SUBMISSION_FAILED: "提交失败",
@@ -819,6 +820,7 @@ export function MonitoringPage({ projectId }: { projectId: string }) {
   const [confirmation, setConfirmation] = useState<{
     draft: ScheduleDraft;
     estimate: Estimate;
+    key: string;
   }>();
   const canManage = data?.permissions.includes("analysis.run");
   const change = (patch: Partial<ScheduleDraft>) => {
@@ -871,7 +873,11 @@ export function MonitoringPage({ projectId }: { projectId: string }) {
         setActionError("预计费用超过单次上限，请调整配置或上限。");
         return;
       }
-      setConfirmation({ draft: { ...draft }, estimate: value });
+      setConfirmation({
+        draft: { ...draft },
+        estimate: value,
+        key: globalThis.crypto.randomUUID(),
+      });
     } catch (caught) {
       setActionError(
         caught instanceof ApiError
@@ -893,6 +899,7 @@ export function MonitoringPage({ projectId }: { projectId: string }) {
         `/projects/${projectId}/monitoring/schedules${editingSchedule ? `/${editingSchedule.id}` : ""}`,
         {
           method: editingSchedule ? "PATCH" : "POST",
+          headers: { "idempotency-key": confirmation.key },
           body: JSON.stringify(
             editingSchedule
               ? { ...confirmation.draft, version: editingSchedule.version }

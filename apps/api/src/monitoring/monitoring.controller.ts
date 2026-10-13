@@ -83,6 +83,7 @@ export class MonitoringController {
   async createSchedule(
     @Param("projectId") id: string,
     @Body() body: unknown,
+    @Headers("idempotency-key") key: string | undefined,
     @Req() request: Request,
   ) {
     const actor = await this.actor(request, true);
@@ -91,6 +92,7 @@ export class MonitoringController {
         this.id(id),
         actor,
         this.parse(() => scheduleSchema.parse(body)),
+        key ?? "",
       ),
     );
   }
@@ -213,6 +215,8 @@ export class MonitoringController {
         const messages: Record<string, string> = {
           RESOURCE_NOT_FOUND: "项目不存在或无操作权限。",
           MONITORING_LIMIT_REACHED: "已达到 20 个监测计划上限。",
+          MONITORING_PRICE_UNAVAILABLE:
+            "模型价格尚未配置，请联系管理员补齐后重试。",
           MONITORING_BUDGET_EXCEEDED:
             "预计费用超过单次上限，请调整配置或上限。",
           MONITORING_SELECTION_UNAVAILABLE:
@@ -223,6 +227,7 @@ export class MonitoringController {
           VERSION_CONFLICT: "内容已更新，请刷新后重试。",
           ASSIGNEE_UNAVAILABLE: "负责人已不在工作区，请重新选择。",
           IDEMPOTENCY_KEY_REQUIRED: "请求标识无效，请重试。",
+          IDEMPOTENCY_CONFLICT: "请求内容已变更，请重新核算后提交。",
           INSIGHTS_RANGE_TOO_LARGE: "数据量超过查询上限，请缩短统计时间。",
           PROJECT_NOT_READY: "项目尚未完成品牌确认。",
         };

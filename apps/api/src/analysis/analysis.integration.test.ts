@@ -604,6 +604,45 @@ describe("analysis jobs, runs, cancellation and retries", () => {
         .send(input)
         .expect(201)
     ).body.data;
+    const modelVersion = await database.modelConfigVersion.findFirstOrThrow({
+      where: { modelConfigId: model.id },
+      orderBy: { versionNumber: "desc" },
+    });
+    await database.modelConfigVersion.update({
+      where: { id: modelVersion.id },
+      data: { outputPriceMicrosPerMillion: null },
+    });
+    try {
+      const unpriced = await write()
+        .post(`/api/v1/projects/${projectId}/monitoring/estimate`)
+        .send({ promptIds: [prompt.id], modelConfigIds: [model.id] })
+        .expect(409);
+      expect(unpriced.body.error.code).toBe("MONITORING_PRICE_UNAVAILABLE");
+    } finally {
+      await database.modelConfigVersion.update({
+        where: { id: modelVersion.id },
+        data: {
+          outputPriceMicrosPerMillion: modelVersion.outputPriceMicrosPerMillion,
+        },
+      });
+    }
+    const replayKey = `schedule-replay-${schedule.id}`;
+    const once = await write()
+      .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+      .set("Idempotency-Key", replayKey)
+      .send(input)
+      .expect(201);
+    const again = await write()
+      .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+      .set("Idempotency-Key", replayKey)
+      .send(input)
+      .expect(201);
+    expect(again.body.data.id).toBe(once.body.data.id);
+    await write()
+      .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+      .set("Idempotency-Key", replayKey)
+      .send({ ...input, name: "不同的计划" })
+      .expect(409);
     const due = new Date(Date.now() - 60_000);
     await database.monitoringSchedule.update({
       where: { id: schedule.id },
@@ -1038,6 +1077,7 @@ describe("analysis jobs, runs, cancellation and retries", () => {
       post: (path: string) =>
         request(server)
           .post(path)
+          .set("Idempotency-Key", uuidv7())
           .set("Cookie", cookie)
           .set("Origin", origin)
           .set("X-CSRF-Token", csrf),

@@ -1604,6 +1604,8 @@ enum OptimizationTaskStatus {
 }
 
 model MonitoringSchedule {
+  idempotencyKey String                @unique @map("idempotency_key") @db.VarChar(200)
+  requestHash    String                @map("request_hash") @db.Char(64)
   id             String                @id @db.Uuid
   projectId      String                @map("project_id") @db.Uuid
   createdById    String                @map("created_by_id") @db.Uuid

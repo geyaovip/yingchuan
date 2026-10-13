@@ -9,6 +9,8 @@ CREATE TYPE "OptimizationTaskStatus" AS ENUM ('open', 'in_progress', 'done');
 
 -- CreateTable
 CREATE TABLE "monitoring_schedules" (
+    "idempotency_key" VARCHAR(200) NOT NULL,
+    "request_hash" CHAR(64) NOT NULL,
     "id" UUID NOT NULL,
     "project_id" UUID NOT NULL,
     "created_by_id" UUID NOT NULL,
@@ -142,3 +144,5 @@ ALTER TABLE "monitoring_executions"
   ALTER COLUMN "model_config_ids" SET NOT NULL,
   ADD CONSTRAINT "monitoring_execution_attempt_check" CHECK ("attempts" BETWEEN 0 AND 3),
   ADD CONSTRAINT "monitoring_execution_budget_check" CHECK ("max_cost_micros" > 0);
+
+CREATE UNIQUE INDEX "monitoring_schedules_idempotency_key_key" ON "monitoring_schedules"("idempotency_key");

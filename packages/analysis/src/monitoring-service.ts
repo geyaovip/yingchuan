@@ -184,14 +184,57 @@ export class MonitoringApplicationService {
     selection: AnalysisSelection,
   ) {
     await this.project(projectId, userId, "analysis.run");
-    return this.gateway.estimate(projectId, userId, selection);
+    const estimate = await this.gateway.estimate(projectId, userId, selection);
+    const models = await this.database.modelConfigVersion.findMany({
+      where: {
+        id: {
+          in: estimate.items
+            .filter((item) => item.status === "eligible")
+            .map((item) => item.modelVersionId),
+        },
+      },
+    });
+    if (
+      models.some(
+        (version) =>
+          version.inputPriceMicrosPerMillion === null ||
+          version.outputPriceMicrosPerMillion === null,
+      )
+    )
+      throw new AnalysisServiceError("MONITORING_PRICE_UNAVAILABLE", 409);
+    return estimate;
   }
   async createSchedule(
     projectId: string,
     actor: AnalysisActor,
     input: ScheduleInput,
+    key: string,
   ) {
     const project = await this.project(projectId, actor.userId, "analysis.run");
+    if (!key || key.length > 120)
+      throw new AnalysisServiceError("IDEMPOTENCY_KEY_REQUIRED", 400);
+    const idempotencyKey = `schedule:${actor.userId}:${key}`;
+    const requestHash = createHash("sha256")
+      .update(
+        JSON.stringify({
+          ...input,
+          projectId,
+          promptIds: [...input.promptIds].sort(),
+          modelConfigIds: [...input.modelConfigIds].sort(),
+        }),
+      )
+      .digest("hex");
+    const existing = await this.database.monitoringSchedule.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existing) {
+      if (
+        existing.projectId !== projectId ||
+        existing.requestHash !== requestHash
+      )
+        throw new AnalysisServiceError("IDEMPOTENCY_CONFLICT", 409);
+      return this.view(existing);
+    }
     if (
       (await this.database.monitoringSchedule.count({
         where: { projectId },
@@ -208,29 +251,66 @@ export class MonitoringApplicationService {
       { ...input, timezone: project.timezone },
       new Date(),
     );
-    const row = await this.database.$transaction(async (tx) => {
-      const row = await tx.monitoringSchedule.create({
-        data: {
-          ...input,
+    try {
+      const row = await this.database.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM projects WHERE id = ${projectId}::uuid FOR UPDATE`;
+        const replay = await tx.monitoringSchedule.findUnique({
+          where: { idempotencyKey },
+        });
+        if (replay) {
+          if (
+            replay.projectId !== projectId ||
+            replay.requestHash !== requestHash
+          )
+            throw new AnalysisServiceError("IDEMPOTENCY_CONFLICT", 409);
+          return replay;
+        }
+        if ((await tx.monitoringSchedule.count({ where: { projectId } })) >= 20)
+          throw new AnalysisServiceError("MONITORING_LIMIT_REACHED", 409);
+        const row = await tx.monitoringSchedule.create({
+          data: {
+            ...input,
+            idempotencyKey,
+            requestHash,
+            id,
+            projectId,
+            createdById: actor.userId,
+            timezone: project.timezone,
+            nextRunAt,
+            maxCostMicros: BigInt(input.maxCostMicros),
+          },
+        });
+        await this.audit(
+          tx,
+          project.workspaceId,
+          actor,
+          "monitoring.create",
+          "MonitoringSchedule",
           id,
-          projectId,
-          createdById: actor.userId,
-          timezone: project.timezone,
-          nextRunAt,
-          maxCostMicros: BigInt(input.maxCostMicros),
-        },
+        );
+        return row;
       });
-      await this.audit(
-        tx,
-        project.workspaceId,
-        actor,
-        "monitoring.create",
-        "MonitoringSchedule",
-        id,
-      );
-      return row;
-    });
-    return this.view(row);
+      return this.view(row);
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        const raced = await this.database.monitoringSchedule.findUnique({
+          where: { idempotencyKey },
+        });
+        if (
+          raced &&
+          raced.projectId === projectId &&
+          raced.requestHash === requestHash
+        )
+          return this.view(raced);
+        if (raced) throw new AnalysisServiceError("IDEMPOTENCY_CONFLICT", 409);
+      }
+      throw error;
+    }
   }
   async updateSchedule(
     projectId: string,
@@ -440,6 +520,7 @@ export class MonitoringApplicationService {
           "MONITORING_PAUSED",
           "MONITORING_SELECTION_UNAVAILABLE",
           "MONITORING_BUDGET_EXCEEDED",
+          "MONITORING_PRICE_UNAVAILABLE",
           "ANALYSIS_QUOTA_INSUFFICIENT",
           "ANALYSIS_HAS_NO_ELIGIBLE_RUNS",
         ].includes(code);
@@ -526,6 +607,8 @@ export class MonitoringApplicationService {
                   MONITORING_PAUSED: "计划已暂停。",
                   MONITORING_SELECTION_UNAVAILABLE:
                     "部分问题或模型已停用，请检查计划配置。",
+                  MONITORING_PRICE_UNAVAILABLE:
+                    "模型价格尚未配置，请联系管理员补齐后重试。",
                   MONITORING_BUDGET_EXCEEDED:
                     "预计费用超过单次上限，请调整计划配置或费用上限。",
                   ANALYSIS_QUOTA_INSUFFICIENT: "工作区可用额度不足。",

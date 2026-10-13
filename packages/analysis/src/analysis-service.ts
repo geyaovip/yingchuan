@@ -93,6 +93,15 @@ export class AnalysisApplicationService {
     const modelVersions = await this.database.modelConfigVersion.findMany({
       where: { id: { in: eligible.map((item) => item.modelVersionId) } },
     });
+    if (
+      selection.maxCostMicros !== undefined &&
+      modelVersions.some(
+        (version) =>
+          version.inputPriceMicrosPerMillion === null ||
+          version.outputPriceMicrosPerMillion === null,
+      )
+    )
+      throw new AnalysisServiceError("MONITORING_PRICE_UNAVAILABLE", 409);
     const promptById = new Map(promptVersions.map((item) => [item.id, item]));
     const modelById = new Map(modelVersions.map((item) => [item.id, item]));
     const project = await this.database.project.findUniqueOrThrow({
