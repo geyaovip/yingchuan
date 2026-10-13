@@ -1,5 +1,6 @@
 import {
   type FormEvent,
+  type MouseEvent,
   type PropsWithChildren,
   type ReactNode,
   useEffect,
@@ -101,6 +102,7 @@ export interface AppShellProps extends PropsWithChildren {
   readonly brandHref?: string;
   readonly navigation: readonly NavigationItem[];
   readonly onLogout?: () => void;
+  readonly onNavigate?: (href: string) => void;
   readonly projectNavigation?: readonly NavigationItem[];
   readonly projectTitle?: string;
   readonly userEmail?: string;
@@ -117,6 +119,7 @@ export function AppShell({
   children,
   navigation,
   onLogout,
+  onNavigate,
   onWorkspaceChange,
   projectNavigation = [],
   projectTitle,
@@ -132,6 +135,22 @@ export function AppShell({
   const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  const navigateLink = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    setMenuOpen(false);
+    setAccountOpen(false);
+    if (
+      !onNavigate ||
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    onNavigate(href);
+  };
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -226,7 +245,11 @@ export function AppShell({
             <Menu aria-hidden="true" size={21} strokeWidth={1.8} />
           )}
         </button>
-        <a className="yc-brand yc-brand--mobile" href={resolvedBrandHref}>
+        <a
+          className="yc-brand yc-brand--mobile"
+          href={resolvedBrandHref}
+          onClick={(event) => navigateLink(event, resolvedBrandHref)}
+        >
           <span className="yc-brand__mark">映</span>
           {brand}
         </a>
@@ -251,6 +274,7 @@ export function AppShell({
         <AccountMenu
           accountHref={accountHref}
           menuRef={accountMenuRef}
+          onNavigate={navigateLink}
           onLogout={onLogout}
         />
       )}
@@ -267,7 +291,11 @@ export function AppShell({
         className={`yc-sidebar${menuOpen ? " is-open" : ""}`}
         ref={sidebarRef}
       >
-        <a className="yc-brand" href={resolvedBrandHref}>
+        <a
+          className="yc-brand"
+          href={resolvedBrandHref}
+          onClick={(event) => navigateLink(event, resolvedBrandHref)}
+        >
           <span className="yc-brand__mark">映</span>
           {brand}
         </a>
@@ -294,7 +322,7 @@ export function AppShell({
               ? navigation.slice(0, secondaryNavigationStart)
               : navigation
           }
-          onNavigate={() => setMenuOpen(false)}
+          onNavigate={navigateLink}
         />
         {projectNavigation.length > 0 && (
           <>
@@ -306,7 +334,7 @@ export function AppShell({
                 activeHref={activeHref}
                 ariaLabel="项目导航"
                 items={projectNavigation}
-                onNavigate={() => setMenuOpen(false)}
+                onNavigate={navigateLink}
               />
             </div>
             {secondaryNavigationStart >= 0 && (
@@ -316,7 +344,7 @@ export function AppShell({
                   activeHref={activeHref}
                   ariaLabel="工作空间导航"
                   items={navigation.slice(secondaryNavigationStart)}
-                  onNavigate={() => setMenuOpen(false)}
+                  onNavigate={navigateLink}
                 />
               </details>
             )}
@@ -361,10 +389,15 @@ export function AppShell({
 function AccountMenu({
   accountHref,
   menuRef,
+  onNavigate,
   onLogout,
 }: {
   readonly accountHref?: string;
   readonly menuRef: React.RefObject<HTMLDivElement | null>;
+  readonly onNavigate: (
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => void;
   readonly onLogout?: () => void;
 }) {
   return (
@@ -376,7 +409,11 @@ function AccountMenu({
       role="menu"
     >
       {accountHref && (
-        <a href={accountHref} role="menuitem">
+        <a
+          href={accountHref}
+          onClick={(event) => onNavigate(event, accountHref)}
+          role="menuitem"
+        >
           <UserRound aria-hidden="true" size={16} strokeWidth={1.8} />
           账号设置
         </a>
@@ -400,7 +437,10 @@ function Navigation({
   readonly activeHref: string;
   readonly ariaLabel?: string;
   readonly items: readonly NavigationItem[];
-  readonly onNavigate: () => void;
+  readonly onNavigate: (
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => void;
 }) {
   return (
     <nav aria-label={ariaLabel} className="yc-main-nav">
@@ -428,14 +468,17 @@ function NavigationLink({
 }: {
   readonly active: boolean;
   readonly item: NavigationItem;
-  readonly onNavigate: () => void;
+  readonly onNavigate: (
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => void;
 }) {
   const Icon = item.icon ? navigationIcons[item.icon] : Circle;
   return (
     <a
       aria-current={active ? "page" : undefined}
       href={item.href}
-      onClick={onNavigate}
+      onClick={(event) => onNavigate(event, item.href)}
     >
       <span className="yc-main-nav__marker" aria-hidden="true">
         <Icon size={17} strokeWidth={1.8} />
@@ -552,13 +595,19 @@ export function LoginPanel({
           映川
         </a>
         <p className="yc-eyebrow">
-          {audience === "admin" ? "管理控制台" : "品牌内容分析"}
+          {audience === "admin" ? "平台运营" : "品牌 AI 可见度分析"}
         </p>
-        <h1 id="login-heading">{codeRequested ? "输入验证码" : "登录映川"}</h1>
+        <h1 id="login-heading">
+          {codeRequested
+            ? "输入验证码"
+            : audience === "admin"
+              ? "登录管理控制台"
+              : "登录映川工作台"}
+        </h1>
         <p className="yc-auth-card__intro">
           {codeRequested
             ? `验证码已发送至 ${email}，10 分钟内有效。`
-            : "使用邮箱验证码安全登录，无需记住密码。"}
+            : "输入邮箱地址，获取一次性登录验证码。"}
         </p>
         <form onSubmit={(event) => void submit(event)}>
           <FormField label="邮箱地址">

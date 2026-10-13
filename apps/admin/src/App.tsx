@@ -12,8 +12,14 @@ import {
   type NavigationItem,
   type ResponsiveColumn,
 } from "@yingchuan/ui";
-import { useEffect, useMemo, useState } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { api } from "./api";
 
@@ -227,7 +233,10 @@ const navigation: readonly NavigationItem[] = [
 export function App() {
   const [session, setSession] = useState<SessionView>();
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [sessionError, setSessionError] = useState<string>();
+  const loadSession = useCallback(() => {
+    setLoading(true);
+    setSessionError(undefined);
     void api
       .getSession()
       .then((next) => {
@@ -237,14 +246,35 @@ export function App() {
           setSession(undefined);
         }
       })
-      .catch(() => setSession(undefined))
+      .catch((caught: unknown) => {
+        setSession(undefined);
+        if (!(caught instanceof ApiError && caught.status === 401))
+          setSessionError(messageFor(caught));
+      })
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    const timer = globalThis.setTimeout(loadSession, 0);
+    return () => globalThis.clearTimeout(timer);
+  }, [loadSession]);
   if (loading)
     return (
       <main className="yc-auth-page">
         <section className="yc-auth-card">
           <Skeleton lines={4} />
+        </section>
+      </main>
+    );
+  if (sessionError)
+    return (
+      <main className="yc-auth-page">
+        <section className="yc-auth-card">
+          <StatePanel
+            action={<Button onClick={loadSession}>重新连接</Button>}
+            description={sessionError}
+            title="暂时无法连接映川管理端"
+            tone="error"
+          />
         </section>
       </main>
     );
@@ -330,6 +360,7 @@ function AdminLogin({
 
 function AdminShell({ session }: { readonly session: SessionView }) {
   const location = useLocation();
+  const navigate = useNavigate();
   return (
     <AppShell
       activeHref={location.pathname}
@@ -341,14 +372,21 @@ function AdminShell({ session }: { readonly session: SessionView }) {
           globalThis.location.href = "/login";
         });
       }}
+      onNavigate={(href) => navigate(href)}
       userEmail={session.email}
     >
       <Routes>
         <Route path="/" element={<Navigate replace to="/admin" />} />
         <Route path="/dashboard" element={<Navigate replace to="/admin" />} />
         <Route path="/admin" element={<AdminHome />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/workspaces" element={<AdminUsers />} />
+        <Route
+          path="/admin/users"
+          element={<AdminUsers currentUserId={session.userId} />}
+        />
+        <Route
+          path="/admin/workspaces"
+          element={<AdminUsers currentUserId={session.userId} />}
+        />
         <Route path="/admin/projects" element={<AdminProjects />} />
         <Route path="/admin/tasks" element={<AdminTasks />} />
         <Route path="/admin/agent" element={<AdminAgent />} />
@@ -918,15 +956,15 @@ function AdminHome() {
           <div className="yc-metric-grid">
             <article>
               <strong>{data.users}</strong>
-              <span>用户</span>
+              <span>用户总数</span>
             </article>
             <article>
               <strong>{data.workspaces}</strong>
-              <span>工作区</span>
+              <span>工作区总数</span>
             </article>
             <article>
               <strong>{data.projects}</strong>
-              <span>项目</span>
+              <span>项目总数</span>
             </article>
             <article>
               <strong>{data.jobs}</strong>
@@ -946,7 +984,7 @@ function AdminHome() {
             </article>
             <article>
               <strong>{data.pendingOutbox}</strong>
-              <span>待投递/死信</span>
+              <span>待处理事件</span>
             </article>
           </div>
           {(data.failedJobs > 0 || data.pendingOutbox > 0) && (
@@ -962,17 +1000,20 @@ function AdminHome() {
   );
 }
 
-function AdminUsers() {
+function AdminUsers({ currentUserId }: { readonly currentUserId: string }) {
   const [rows, setRows] = useState<readonly AdminUserResponse[]>();
   const [query, setQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
   const [error, setError] = useState<string>();
   const load = async () => {
     try {
+      const searchQuery = query.trim();
       setRows(
         await api.request<readonly AdminUserResponse[]>(
-          `/admin/users${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`,
+          `/admin/users${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ""}`,
         ),
       );
+      setAppliedQuery(searchQuery);
       setError(undefined);
     } catch (caught) {
       setError(messageFor(caught));
@@ -988,23 +1029,32 @@ function AdminUsers() {
     <>
       <PageHeader
         title="用户与工作区"
-        description="查看用户、角色、项目数量和额度流水，并执行受控状态变更。"
+        description="查看用户状态、工作区角色和项目数量，并管理访问状态。"
       />
-      <div className="yc-actions">
+      <form
+        className="yc-actions"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void load();
+        }}
+      >
         <input
           aria-label="搜索用户"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="邮箱"
           value={query}
         />
-        <Button onClick={() => void load()}>搜索</Button>
-      </div>
+        <Button type="submit">搜索</Button>
+      </form>
       {error ? (
         <StatePanel description={error} title="加载失败" tone="error" />
       ) : !rows ? (
         <Skeleton />
       ) : (
         <ResponsiveData
+          emptyMessage={
+            appliedQuery ? "未找到匹配的用户，请调整搜索条件。" : "暂无用户。"
+          }
           rows={rows}
           columns={[
             { key: "email", label: "用户", render: (row) => row.displayEmail },
@@ -1033,32 +1083,35 @@ function AdminUsers() {
             {
               key: "action",
               label: "操作",
-              render: (row) => (
-                <Button
-                  intent="ghost"
-                  onClick={() => {
-                    const next =
-                      row.status === "active" ? "suspended" : "active";
-                    if (
-                      !globalThis.confirm(
-                        next === "suspended"
-                          ? `确认停用 ${row.displayEmail}？其现有会话会立即失效。`
-                          : `确认恢复 ${row.displayEmail} 的访问权限？`,
+              render: (row) =>
+                row.id === currentUserId ? (
+                  <span className="yc-meta">当前账号</span>
+                ) : (
+                  <Button
+                    intent="ghost"
+                    onClick={() => {
+                      const next =
+                        row.status === "active" ? "suspended" : "active";
+                      if (
+                        !globalThis.confirm(
+                          next === "suspended"
+                            ? `确认停用 ${row.displayEmail}？其现有会话会立即失效。`
+                            : `确认恢复 ${row.displayEmail} 的访问权限？`,
+                        )
                       )
-                    )
-                      return;
-                    void api
-                      .request(`/admin/users/${row.id}/status`, {
-                        body: JSON.stringify({ status: next }),
-                        method: "PATCH",
-                      })
-                      .then(load)
-                      .catch((caught) => setError(messageFor(caught)));
-                  }}
-                >
-                  {row.status === "active" ? "停用" : "恢复"}
-                </Button>
-              ),
+                        return;
+                      void api
+                        .request(`/admin/users/${row.id}/status`, {
+                          body: JSON.stringify({ status: next }),
+                          method: "PATCH",
+                        })
+                        .then(load)
+                        .catch((caught) => setError(messageFor(caught)));
+                    }}
+                  >
+                    {row.status === "active" ? "停用" : "恢复"}
+                  </Button>
+                ),
             },
           ]}
         />
@@ -1088,6 +1141,7 @@ function AdminProjects() {
         <Skeleton />
       ) : (
         <ResponsiveData
+          emptyMessage="暂无品牌项目。用户创建项目后会显示在这里。"
           rows={rows}
           columns={[
             { key: "name", label: "项目", render: (row) => row.name },
@@ -1124,6 +1178,7 @@ function AdminProjects() {
 function AdminTasks() {
   const [rows, setRows] = useState<readonly AdminTaskResponse[]>();
   const [status, setStatus] = useState("");
+  const [appliedStatus, setAppliedStatus] = useState("");
   const [error, setError] = useState<string>();
   const load = async () => {
     try {
@@ -1132,6 +1187,8 @@ function AdminTasks() {
           `/admin/tasks${status ? `?status=${status}` : ""}`,
         ),
       );
+      setAppliedStatus(status);
+      setError(undefined);
     } catch (caught) {
       setError(messageFor(caught));
     }
@@ -1148,7 +1205,13 @@ function AdminTasks() {
         title="任务"
         description="查看任务状态、成功/失败子任务和处理时间。"
       />
-      <div className="yc-actions">
+      <form
+        className="yc-actions"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void load();
+        }}
+      >
         <select
           aria-label="任务状态"
           onChange={(event) => setStatus(event.target.value)}
@@ -1160,14 +1223,19 @@ function AdminTasks() {
           <option value="partially_completed">部分成功</option>
           <option value="completed">完成</option>
         </select>
-        <Button onClick={() => void load()}>筛选</Button>
-      </div>
+        <Button type="submit">筛选</Button>
+      </form>
       {error ? (
         <StatePanel description={error} title="加载失败" tone="error" />
       ) : !rows ? (
         <Skeleton />
       ) : (
         <ResponsiveData
+          emptyMessage={
+            appliedStatus
+              ? "当前状态下没有任务，请调整筛选条件。"
+              : "暂无分析任务。用户提交分析后会显示在这里。"
+          }
           rows={rows}
           columns={[
             {
@@ -1373,7 +1441,7 @@ function AdminAlerts() {
         <Skeleton />
       ) : rows.length === 0 ? (
         <StatePanel
-          description="模型、队列、成本和报告耗时目前都未触发阈值。"
+          description="当前没有待处理告警。新告警出现后会显示在这里。"
           title="当前没有告警"
         />
       ) : (
@@ -1497,7 +1565,7 @@ function AdminDailyReports() {
         <Skeleton lines={6} />
       ) : rows.length === 0 ? (
         <StatePanel
-          description="Worker 到达首个调度窗口后会自动生成日报。"
+          description="首份日报将在下一个北京时间 09:00 调度窗口生成。"
           title="暂无运营日报"
         />
       ) : (
@@ -1507,11 +1575,20 @@ function AdminDailyReports() {
             {
               key: "date",
               label: "报告日期",
-              render: (row) =>
-                new Intl.DateTimeFormat("zh-CN", {
-                  dateStyle: "medium",
-                  timeZone: "UTC",
-                }).format(new Date(row.reportDate)),
+              render: (row) => (
+                <div>
+                  <strong>
+                    {new Intl.DateTimeFormat("zh-CN", {
+                      dateStyle: "medium",
+                      timeZone: "UTC",
+                    }).format(new Date(row.reportDate))}
+                  </strong>
+                  <small className="yc-table-secondary">
+                    数据窗口：{adminFormatShortDateTime(row.windowStart)}—
+                    {adminFormatShortDateTime(row.windowEnd)}（北京时间）
+                  </small>
+                </div>
+              ),
             },
             {
               key: "status",
@@ -1547,26 +1624,16 @@ function AdminDailyReports() {
                         : `${row.snapshot.analysisSuccessRate.toFixed(2)}%`}
                     </small>
                     <small className="yc-table-secondary">
-                      付费用户 {row.snapshot.paidUsers ?? "未接入"} · 收入{" "}
-                      {row.snapshot.revenueMicros === null
-                        ? "未接入"
-                        : adminFormatMicros(BigInt(row.snapshot.revenueMicros))}
+                      模型成本{" "}
+                      {adminFormatMicros(BigInt(row.snapshot.modelCostMicros))}{" "}
+                      · 异常任务{" "}
+                      {row.snapshot.failedAnalysisJobs +
+                        row.snapshot.partiallyCompletedAnalysisJobs}
                     </small>
                   </div>
                 ) : (
                   (row.errorCode ?? "生成中")
                 ),
-            },
-            {
-              key: "cost",
-              label: "成本 / 异常",
-              render: (row) =>
-                row.snapshot
-                  ? `${adminFormatMicros(BigInt(row.snapshot.modelCostMicros))} / ${
-                      row.snapshot.failedAnalysisJobs +
-                      row.snapshot.partiallyCompletedAnalysisJobs
-                    } 个`
-                  : "—",
             },
             {
               key: "change",
@@ -1582,13 +1649,6 @@ function AdminDailyReports() {
                 ) : (
                   "—"
                 ),
-              secondary: true,
-            },
-            {
-              key: "window",
-              label: "数据窗口",
-              render: (row) =>
-                `${adminFormatDateTime(row.windowStart)} 至 ${adminFormatDateTime(row.windowEnd)}`,
               secondary: true,
             },
           ]}
@@ -1641,7 +1701,7 @@ function TelegramSettings() {
     <>
       <PageHeader
         title="Telegram 通知渠道"
-        description="Token 与 Chat ID 加密保存且永不回显；测试消息有幂等与限流。"
+        description="保存 Telegram 凭据后可发送测试消息；敏感信息只显示掩码。"
       />
       {error && (
         <StatePanel description={error} title="操作失败" tone="error" />
@@ -2169,6 +2229,16 @@ function adminFormatDateTime(value: string): string {
     timeStyle: "short",
     timeZone: "Asia/Shanghai",
   }).format(new Date(value))}（北京时间）`;
+}
+
+function adminFormatShortDateTime(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Shanghai",
+  }).format(new Date(value));
 }
 
 function messageFor(error: unknown): string {
