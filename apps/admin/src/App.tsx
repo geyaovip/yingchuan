@@ -475,10 +475,7 @@ function ModelManagement() {
   const version = selected?.versions[0];
   return (
     <>
-      <PageHeader
-        description="集中管理火山方舟接入、模型版本、价格、能力和可用状态。"
-        title="模型管理"
-      />
+      <PageHeader title="模型管理" />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
@@ -490,7 +487,7 @@ function ModelManagement() {
               <p>
                 供应商标识 <code>{provider.code}</code> · 凭证
                 {provider.credentialConfigured
-                  ? `已配置（${provider.credential?.maskedHint ?? "已加密"}）`
+                  ? `已配置（${provider.credential?.maskedHint ?? "已保存"}）`
                   : "未配置"}
               </p>
               <div className="yc-actions">
@@ -557,11 +554,11 @@ function ModelManagement() {
                 },
                 {
                   key: "probe",
-                  label: "最近探测",
+                  label: "最近连接测试",
                   render: (row: ModelConfig) =>
                     row.versions[0]?.probedAt
                       ? adminFormatDateTime(row.versions[0].probedAt)
-                      : "未探测",
+                      : "未测试",
                   secondary: true,
                 },
                 {
@@ -583,7 +580,7 @@ function ModelManagement() {
           <div className="yc-side-stack">
             <section className="yc-card yc-section-card yc-form-card">
               <h2>更新方舟凭证</h2>
-              <p>凭证不会回显，覆盖前需要二次邮箱验证。</p>
+              <p>修改凭证前需验证邮箱。</p>
               <FormField label="新 API Key">
                 <input
                   autoComplete="new-password"
@@ -609,10 +606,10 @@ function ModelManagement() {
                     })
                   }
                 >
-                  发送二次验证码
+                  发送邮箱验证码
                 </Button>
               </div>
-              <FormField label="二次验证码">
+              <FormField label="邮箱验证码">
                 <input
                   maxLength={6}
                   onChange={(event) => setStepUpCode(event.target.value)}
@@ -632,7 +629,7 @@ function ModelManagement() {
                     )
                   }
                 >
-                  完成二次验证
+                  验证邮箱
                 </Button>
                 <Button
                   disabled={busy || credential.length < 8}
@@ -649,7 +646,7 @@ function ModelManagement() {
                     })
                   }
                 >
-                  加密保存
+                  保存配置
                 </Button>
               </div>
             </section>
@@ -799,7 +796,7 @@ function ModelConfigForm({
         />
       </FormField>
       <FormField
-        hint="从当前方舟账户控制台选择，不根据品牌名猜测。"
+        hint="填写方舟控制台中的 Model ID。"
         label="Model ID / Endpoint ID"
       >
         <input
@@ -818,7 +815,7 @@ function ModelConfigForm({
           <option value="chat_completions">Chat Completions</option>
         </select>
       </FormField>
-      <FormField hint="例如 256000；未知时可留空。" label="上下文窗口">
+      <FormField hint="未知时可留空。" label="上下文窗口">
         <input
           inputMode="numeric"
           min={1}
@@ -892,7 +889,7 @@ function ModelConfigForm({
             })
           }
         >
-          探测已保存配置
+          测试连接
         </Button>
         <Button
           disabled={busy || !valid}
@@ -905,7 +902,7 @@ function ModelConfigForm({
           {config.status === "enabled" ? "保存并停用" : "保存并启用"}
         </Button>
       </div>
-      {dirty && <p>配置已修改，请先保存，再对已保存版本进行真实探测。</p>}
+      {dirty && <p>请先保存，再测试连接。</p>}
       {(probeResult || version.probedAt) && (
         <StatePanel
           description={
@@ -916,7 +913,7 @@ function ModelConfigForm({
               : `最近成功：${adminFormatDateTime(version.probedAt!)}`
           }
           title={
-            probeResult?.status === "failed" ? "模型探测失败" : "模型探测通过"
+            probeResult?.status === "failed" ? "连接测试失败" : "连接测试通过"
           }
           tone={probeResult?.status === "failed" ? "error" : "empty"}
         />
@@ -937,7 +934,6 @@ function AdminHome() {
   return (
     <>
       <PageHeader
-        description="查看平台运行状态、模型调用和待处理事项。"
         metadata={
           data
             ? `${adminFormatDateTime(data.dataFrom)} — ${adminFormatDateTime(data.dataTo)}`
@@ -987,7 +983,7 @@ function AdminHome() {
           </div>
           {(data.failedJobs > 0 || data.pendingOutbox > 0) && (
             <StatePanel
-              description="存在异常任务或待处理事件，请进入任务和审计页面定位。"
+              description="请查看异常任务和待处理事件。"
               title="需要关注"
               tone="stale"
             />
@@ -1025,10 +1021,7 @@ function AdminUsers({ currentUserId }: { readonly currentUserId: string }) {
   }, []);
   return (
     <>
-      <PageHeader
-        title="用户与工作区"
-        description="查看用户状态、工作区角色和项目数量，并管理访问状态。"
-      />
+      <PageHeader title="用户与工作区" />
       <form
         className="yc-actions"
         onSubmit={(event) => {
@@ -1129,10 +1122,7 @@ function AdminProjects() {
   }, []);
   return (
     <>
-      <PageHeader
-        title="项目"
-        description="跨工作区只读查看项目上下文、品牌实体和最新任务状态。"
-      />
+      <PageHeader title="项目" />
       {error ? (
         <StatePanel description={error} title="加载失败" tone="error" />
       ) : !rows ? (
@@ -1199,10 +1189,7 @@ function AdminTasks() {
   }, []);
   return (
     <>
-      <PageHeader
-        title="任务"
-        description="查看任务状态、成功/失败子任务和处理时间。"
-      />
+      <PageHeader title="任务" />
       <form
         className="yc-actions"
         onSubmit={(event) => {
@@ -1319,10 +1306,7 @@ function AdminAgent() {
   };
   return (
     <>
-      <PageHeader
-        title="运营助手"
-        description="基于平台实时数据回答运营问题，并展示数据来源与本次运行消耗。"
-      />
+      <PageHeader title="运营助手" />
       {error && (
         <StatePanel description={error} title="运行失败" tone="error" />
       )}
@@ -1355,10 +1339,7 @@ function AdminAgent() {
         </Button>
       </section>
       {runs.length === 0 ? (
-        <StatePanel
-          description="提交问题后，运行状态和数据来源会显示在这里。"
-          title="暂无运行"
-        />
+        <StatePanel description="输入问题，开始查询。" title="暂无运行" />
       ) : (
         runs.map((run) => (
           <section className="yc-card yc-section-card" key={run.id}>
@@ -1416,14 +1397,12 @@ function AdminAlerts() {
     <>
       <PageHeader
         title="平台告警"
-        description="确定性规则每分钟评估；同一异常合并，30 分钟内不重复提醒，恢复后自动关闭。"
         actions={<Button onClick={() => void load()}>刷新</Button>}
       />
       <section className="yc-card yc-section-card">
         <div className="yc-section-heading">
           <div>
             <h2>固定规则</h2>
-            <p>规则由平台统一管理，不依赖运营助手判断。</p>
           </div>
         </div>
         <ul className="yc-plain-list">
@@ -1438,10 +1417,7 @@ function AdminAlerts() {
       ) : !rows ? (
         <Skeleton />
       ) : rows.length === 0 ? (
-        <StatePanel
-          description="当前没有待处理告警。新告警出现后会显示在这里。"
-          title="当前没有告警"
-        />
+        <StatePanel title="当前没有告警" />
       ) : (
         <ResponsiveData
           rows={rows}
@@ -1554,7 +1530,7 @@ function AdminDailyReports() {
     <>
       <PageHeader
         title="运营日报"
-        description="每天 09:00（北京时间）生成前一自然日的平台数据快照；Telegram 已启用时自动推送。"
+        metadata="每日 09:00（北京时间），统计前一日数据"
         actions={<Button onClick={() => void load()}>刷新</Button>}
       />
       {error ? (
@@ -1563,7 +1539,7 @@ function AdminDailyReports() {
         <Skeleton lines={6} />
       ) : rows.length === 0 ? (
         <StatePanel
-          description="每天 09:00（北京时间）自动生成，首份日报会在下一次生成后显示。"
+          description="首份日报将在下次定时生成后显示。"
           title="暂无运营日报"
         />
       ) : (
@@ -1697,10 +1673,7 @@ function TelegramSettings() {
   };
   return (
     <>
-      <PageHeader
-        title="Telegram 通知渠道"
-        description="保存 Telegram 凭据后可发送测试消息；敏感信息只显示掩码。"
-      />
+      <PageHeader title="Telegram 通知渠道" />
       {error && (
         <StatePanel description={error} title="操作失败" tone="error" />
       )}
@@ -1748,9 +1721,9 @@ function TelegramSettings() {
               })
             }
           >
-            发送二次验证码
+            发送邮箱验证码
           </Button>
-          <FormField label="二次验证码">
+          <FormField label="邮箱验证码">
             <input
               maxLength={6}
               onChange={(event) => setCode(event.target.value)}
@@ -1783,7 +1756,7 @@ function TelegramSettings() {
                 )
               }
             >
-              加密保存
+              保存配置
             </Button>
             <Button
               disabled={!config?.configured}
@@ -1837,7 +1810,7 @@ function TelegramSettings() {
             />
           ) : (
             <StatePanel
-              description="发送测试消息后会记录脱敏投递结果。"
+              description="发送测试消息后可查看投递结果。"
               title="暂无投递"
             />
           )}
@@ -1927,10 +1900,7 @@ function AdminUsage() {
   };
   return (
     <>
-      <PageHeader
-        description="查看各工作区额度汇总，并执行有完整操作记录的额度调整。"
-        title="用量与额度"
-      />
+      <PageHeader title="用量与额度" />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
@@ -1970,7 +1940,7 @@ function AdminUsage() {
               />
             ) : (
               <StatePanel
-                description="创建工作区后会显示额度汇总。"
+                description="工作区创建后可查看额度。"
                 title="暂无工作区"
               />
             )}
@@ -2001,10 +1971,7 @@ function AdminUsage() {
                 value={amount}
               />
             </FormField>
-            <FormField
-              hint="至少 3 个字符，会随账本和审计记录保存。"
-              label="调整原因"
-            >
+            <FormField hint="至少 3 个字符。" label="调整原因">
               <textarea
                 maxLength={200}
                 onChange={(event) => setReason(event.target.value)}
@@ -2076,10 +2043,7 @@ function AuditLogs() {
   ];
   return (
     <>
-      <PageHeader
-        description="查询管理操作、敏感配置变更和运营助手动作的完整记录。"
-        title="审计日志"
-      />
+      <PageHeader title="审计日志" />
       <div className="yc-actions">
         <input
           aria-label="按操作筛选"
@@ -2094,10 +2058,7 @@ function AuditLogs() {
       ) : !rows ? (
         <Skeleton lines={6} />
       ) : rows.length === 0 ? (
-        <StatePanel
-          description="产生管理操作后，记录会显示在这里。"
-          title="暂无审计记录"
-        />
+        <StatePanel description="管理操作会自动记录。" title="暂无审计记录" />
       ) : (
         <ResponsiveData columns={columns} rows={rows} />
       )}
@@ -2115,7 +2076,7 @@ function AdminNotFound() {
             返回管理首页
           </Button>
         }
-        description="当前地址无对应管理能力，或当前管理员没有访问权限。"
+        description="请检查地址或返回管理首页。"
         title="无法打开此页面"
         tone="error"
       />

@@ -715,7 +715,6 @@ function Dashboard({
             <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
           ) : undefined
         }
-        description="查看品牌项目、分析进展和需要处理的事项。"
         title="工作台"
       />
       {loading || (workspaceId && (!projects || !notifications)) ? (
@@ -731,7 +730,7 @@ function Dashboard({
           action={
             <Button onClick={() => navigate("/workspaces")}>创建工作区</Button>
           }
-          description="先创建工作区，再建立第一个品牌项目。团队成员可以稍后邀请。"
+          description="创建工作区后即可添加品牌项目。"
           title="从工作区开始"
         />
       ) : projects?.length ? (
@@ -774,7 +773,6 @@ function Dashboard({
             <div className="yc-section-heading">
               <div>
                 <h2>最近项目</h2>
-                <p>继续品牌确认、认知源维护或分析任务。</p>
               </div>
               <Button intent="ghost" onClick={() => navigate("/projects")}>
                 查看全部
@@ -816,7 +814,7 @@ function Dashboard({
               创建第一个项目
             </Button>
           }
-          description="当前工作区还没有品牌项目。创建项目后即可确认品牌、配置分析问题并发起检测。"
+          description="添加品牌名称，开始首次分析。"
           title="创建第一个品牌项目"
         />
       )}
@@ -859,19 +857,13 @@ function NotificationsPage() {
   };
   return (
     <>
-      <PageHeader
-        title="通知"
-        description="分析报告和需要处理的业务事项会显示在这里。"
-      />
+      <PageHeader title="通知" />
       {error ? (
         <StatePanel description={error} title="无法加载通知" tone="error" />
       ) : !rows ? (
         <Skeleton />
       ) : rows.length === 0 ? (
-        <StatePanel
-          description="新报告生成后会在这里通知你。"
-          title="暂无通知"
-        />
+        <StatePanel description="报告生成后会收到通知。" title="暂无通知" />
       ) : (
         <ul className="yc-plain-list">
           {rows.map((item) => (
@@ -958,18 +950,10 @@ function TeamPage({
   const ownerCount =
     members?.filter((member) => member.role.code === "owner").length ?? 0;
   if (!workspaceId)
-    return (
-      <StatePanel
-        description="请先创建或选择工作区，再管理团队成员。"
-        title="尚未选择工作区"
-      />
-    );
+    return <StatePanel description="请先选择工作区。" title="尚未选择工作区" />;
   return (
     <>
-      <PageHeader
-        description="邀请成员并按职责分配权限。角色调整和成员移除都会保留操作记录。"
-        title="团队与权限"
-      />
+      <PageHeader title="团队与权限" />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
@@ -1075,7 +1059,7 @@ function TeamPage({
         {canManage && (
           <section className="yc-card yc-section-card">
             <h2>邀请成员</h2>
-            <FormField hint="邀请链接通过邮件发送，7 天内有效。" label="邮箱">
+            <FormField hint="邮件邀请 7 天内有效。" label="邮箱">
               <input
                 onChange={(event) => setEmail(event.target.value)}
                 type="email"
@@ -1178,10 +1162,7 @@ function SettingsPage({ workspaceId }: { readonly workspaceId?: string }) {
   };
   return (
     <>
-      <PageHeader
-        description="维护当前工作区名称，或使用邀请令牌加入另一个工作区。"
-        title="设置"
-      />
+      <PageHeader title="设置" />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
@@ -1225,10 +1206,7 @@ function SettingsPage({ workspaceId }: { readonly workspaceId?: string }) {
         </section>
         <section className="yc-card yc-section-card">
           <h2>接受工作区邀请</h2>
-          <FormField
-            hint="邀请令牌来自映川发送的工作区邀请邮件。"
-            label="邀请令牌"
-          >
+          <FormField hint="粘贴邀请邮件中的加入码。" label="加入码">
             <input
               autoComplete="off"
               onChange={(event) => setInvitationToken(event.target.value)}
@@ -1290,10 +1268,7 @@ function WorkspacePage({
   };
   return (
     <>
-      <PageHeader
-        description="工作区是成员权限和品牌数据的隔离边界。"
-        title="工作区"
-      />
+      <PageHeader title="工作区" />
       {createError && (
         <StatePanel
           description={createError}
@@ -1379,7 +1354,6 @@ function ProjectsPage({ workspaceId }: { readonly workspaceId?: string }) {
             <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
           ) : undefined
         }
-        description="分别管理品牌信息、认知源、分析任务和报告历史。"
         title="品牌项目"
       />
       {!workspaceId ? (
@@ -1398,7 +1372,7 @@ function ProjectsPage({ workspaceId }: { readonly workspaceId?: string }) {
               创建第一个项目
             </Button>
           }
-          description="只需品牌名称；官网、地域和语言可以按实际情况补充。"
+          description="填写品牌名称即可创建项目。"
           title="暂无项目"
         />
       ) : (
@@ -1486,10 +1460,7 @@ function NewProjectPage({ workspaceId }: { readonly workspaceId?: string }) {
     );
   return (
     <>
-      <PageHeader
-        description="品牌名称是唯一必填项；信息不足时系统会保留草稿并让你人工确认。"
-        title="创建品牌项目"
-      />
+      <PageHeader title="创建品牌项目" />
       <section className="yc-card yc-section-card yc-form-card">
         <FormField label="项目/品牌名称">
           <input
@@ -1498,10 +1469,7 @@ function NewProjectPage({ workspaceId }: { readonly workspaceId?: string }) {
             value={name}
           />
         </FormField>
-        <FormField
-          hint="建议填写官方站点；系统只会抓取你确认过的公开网址。"
-          label="官网（可选）"
-        >
+        <FormField hint="填写官网地址；抓取前需确认。" label="官网（可选）">
           <input
             onChange={(event) => setWebsiteUrl(event.target.value)}
             placeholder="https://example.com"
@@ -1625,7 +1593,6 @@ function ProjectOnboarding({
             </Button>
           ) : undefined
         }
-        description="系统只把候选交给你确认，不会自动把同名品牌合并。"
         metadata={`状态：${pendingCandidates.length > 0 ? "待确认品牌" : onboardingStatusLabel(project.onboardingStatus)}`}
         title={project.name}
       />
@@ -1638,14 +1605,14 @@ function ProjectOnboarding({
       )}
       {project.status === "identifying" ? (
         <StatePanel
-          description="识别任务正在后台运行。即使任务失败，当前输入也会作为草稿保留。"
+          description="识别中，可离开此页稍后查看。"
           title="正在识别品牌"
           tone="stale"
         />
       ) : project.status === "draft" ? (
         <StatePanel
           action={<Button onClick={() => void reload()}>重新查看</Button>}
-          description="自动识别未完成。你仍可返回项目列表，后续使用人工候选继续确认。"
+          description="识别未完成，品牌信息已保存。"
           title="已保存为草稿"
           tone="error"
         />
@@ -1672,7 +1639,7 @@ function ProjectOnboarding({
       ) : (
         <StatePanel
           action={<Button onClick={() => void reload()}>重新检查</Button>}
-          description="暂未找到可确认的品牌候选。你可以稍后重试，当前输入已安全保留。"
+          description="品牌信息已保存，可稍后刷新查看候选。"
           title="暂无品牌候选"
         />
       )}
@@ -1735,7 +1702,6 @@ function ProjectOverview({
             </Button>
           ) : undefined
         }
-        description="查看品牌分析进展、报告结果和下一步操作。"
         title={project.name}
       />
       {summaryError && (
@@ -1792,8 +1758,8 @@ function ProjectOverview({
           }
           description={
             prompts?.some((item) => item.enabled)
-              ? "分析问题已准备好。核对预计用量并提交任务后，这里会展示第一份报告。"
-              : "先添加并启用分析问题，再核对预计用量、提交首次分析。"
+              ? "核对预计用量，提交首次分析。"
+              : "添加分析问题，开始首次分析。"
           }
           title="还没有分析报告"
         />
@@ -1821,7 +1787,7 @@ function ProjectOverview({
         <section className="yc-card yc-section-card">
           <h2>认知源</h2>
           <p>{project.knowledgeSources.length} 个来源</p>
-          <p className="yc-meta">仅已确认来源可进入抓取队列。</p>
+
           <Button
             intent="secondary"
             onClick={() => navigate(`/projects/${project.id}/sources`)}
@@ -1890,7 +1856,6 @@ function ProjectBrand({
             管理认知源
           </Button>
         }
-        description="这里展示当前已确认的品牌身份；系统不会用同名候选自动覆盖人工确认。"
         title="品牌信息"
       />
       {!brand ? (
@@ -1902,7 +1867,7 @@ function ProjectBrand({
               完成品牌确认
             </Button>
           }
-          description="确认品牌候选后，规范名称、官网、国家和主要语言会显示在这里。"
+          description="先确认品牌，查看品牌资料。"
           title="品牌尚未确认"
         />
       ) : (
@@ -1911,7 +1876,7 @@ function ProjectBrand({
             <h2>{brand.canonicalName}</h2>
             <dl className="yc-definition-list">
               <div>
-                <dt>规范名称</dt>
+                <dt>品牌名称</dt>
                 <dd>{brand.canonicalName}</dd>
               </div>
               <div>
@@ -1940,8 +1905,7 @@ function ProjectBrand({
             <h2>品牌认知状态</h2>
             <ProjectStatus status={project.status} />
             <p className="yc-meta">
-              已关联 {project.knowledgeSources.length}{" "}
-              个认知源。品牌事实的修订以来源和人工确认记录为依据。
+              {project.knowledgeSources.length} 个认知源
             </p>
           </section>
         </div>
@@ -1969,17 +1933,14 @@ function ProjectWebsite({
   if (!hasProjectCapability(project.capabilities, "website")) {
     return (
       <>
-        <PageHeader
-          title="官网"
-          description="官网来源需要先在认知源中人工确认。"
-        />
+        <PageHeader title="官网" />
         <StatePanel
           action={
             <Button onClick={() => navigate(`/projects/${project.id}/sources`)}>
               管理认知源
             </Button>
           }
-          description="当前项目尚未启用官网能力。添加并确认官方网站后，这里会显示抓取状态。"
+          description="添加并确认官网后可查看抓取状态。"
           title="官网尚未启用"
           tone="empty"
         />
@@ -1997,7 +1958,6 @@ function ProjectWebsite({
             管理官网来源
           </Button>
         }
-        description="官网内容只有在人工确认并通过安全抓取后，才会进入品牌认知基线。"
         title="官网"
       />
       {websiteSources.length ? (
@@ -2034,7 +1994,7 @@ function ProjectWebsite({
               添加官网来源
             </Button>
           }
-          description="当前项目尚未确认官方站点。添加后仍需人工确认，系统不会自动抓取未知候选。"
+          description="请先添加并确认官网地址。"
           title="尚未配置官网"
         />
       )}
@@ -2121,10 +2081,7 @@ function ProjectSources({
     );
   return (
     <>
-      <PageHeader
-        description="管理用于品牌分析的网站与内容来源，并查看每个来源的获取状态。"
-        title="认知源"
-      />
+      <PageHeader title="认知源" />
       {actionError && (
         <StatePanel description={actionError} title="操作未完成" tone="error" />
       )}
@@ -2175,7 +2132,7 @@ function ProjectSources({
             />
           ) : (
             <StatePanel
-              description="添加公开页面并明确确认后，才会进入安全抓取队列。"
+              description="添加并确认公开页面后即可抓取。"
               title="暂无认知源"
             />
           )}
@@ -2232,7 +2189,7 @@ function ProjectSources({
             <Skeleton lines={3} />
           ) : snapshots.length === 0 ? (
             <StatePanel
-              description="这个来源还没有成功抓取。点击来源行中的“立即抓取”后可回来查看结果。"
+              description="点击“立即抓取”获取页面内容。"
               title="暂无抓取记录"
             />
           ) : (
@@ -2380,7 +2337,6 @@ function ProjectPrompts({
             生成建议问题
           </Button>
         }
-        description="按分组维护用户可能提出的问题、地域和版本。启用的提问参与下一次分析；历史分析保留当时的问题版本。"
         title="用户提问"
       />
       {error && (
@@ -2433,7 +2389,7 @@ function ProjectPrompts({
         <section>
           {prompts.length && !visiblePrompts.length ? (
             <StatePanel
-              description="调整关键词、分组或启用状态后重试。"
+              description="请调整筛选条件。"
               title="没有符合条件的提问"
             />
           ) : prompts.length ? (
@@ -2554,7 +2510,7 @@ function ProjectPrompts({
             />
           ) : (
             <StatePanel
-              description="生成一组建议，或手动添加贴近真实用户表达的问题。"
+              description="生成建议问题，或手动添加。"
               title="暂无分析问题"
             />
           )}
@@ -2574,10 +2530,7 @@ function ProjectPrompts({
         <div className="yc-side-stack">
           <section className="yc-card yc-section-card">
             <h2>手动添加</h2>
-            <FormField
-              hint="问题会按原文发送给模型。使用 GEO 等多义缩写时，请写明“生成式引擎优化”，避免模型理解为其他领域。"
-              label="问题"
-            >
+            <FormField hint="使用完整名称，避免缩写歧义。" label="问题">
               <textarea
                 onChange={(event) => setText(event.target.value)}
                 rows={4}
@@ -2641,7 +2594,7 @@ function ProjectPrompts({
                 onChange={(event) => setRequiresWebSearch(event.target.checked)}
                 type="checkbox"
               />
-              需要联网获取最新信息（不支持联网的模型会自动跳过）
+              需要联网（不支持的模型将跳过）
             </label>
             <Button
               disabled={busy || !text.trim()}
@@ -2668,10 +2621,7 @@ function ProjectPrompts({
           </section>
           <section className="yc-card yc-section-card">
             <h2>批量导入</h2>
-            <FormField
-              hint="每行一个问题，最多 100 行；多义词请写出完整含义。"
-              label="问题列表"
-            >
+            <FormField hint="每行一个问题，最多 100 行。" label="问题列表">
               <textarea
                 onChange={(event) => setImportText(event.target.value)}
                 rows={5}
@@ -2727,7 +2677,6 @@ function AnalysisEstimatePanel({
       <div className="yc-section-heading">
         <div>
           <h2>预计用量</h2>
-          <p>按当前启用的分析问题、可用模型和价格计算，提交前会再次核对。</p>
         </div>
         <Button disabled={busy} intent="ghost" onClick={onRefresh}>
           {busy ? "计算中…" : "更新估算"}
@@ -2756,7 +2705,7 @@ function AnalysisEstimatePanel({
         </div>
       ) : estimate ? (
         <p className="yc-meta">
-          当前没有可执行的组合。请先启用分析问题，并确认模型已由管理员配置。
+          请启用分析问题；若仍无法运行，请联系管理员检查模型。
         </p>
       ) : !error ? (
         <Skeleton lines={2} />
@@ -2905,7 +2854,6 @@ function ProjectAnalysis({
             </Button>
           )
         }
-        description="先确认分析问题和预计用量，再提交任务；离开页面后仍可查看进度。"
         title="AI 可见度分析"
       />
       {error && (
@@ -2933,7 +2881,7 @@ function ProjectAnalysis({
                   检查分析问题
                 </Button>
               }
-              description="当前没有可运行的分析组合。请检查已启用的分析问题；若问题正常，请联系管理员核对模型配置。"
+              description="请启用分析问题，或联系管理员检查模型。"
               title="暂时无法提交"
               tone="stale"
             />
@@ -2943,7 +2891,7 @@ function ProjectAnalysis({
               {formatMicros(estimate.estimatedCostMicros)}。
               {estimate.skippedRunCount > 0 &&
                 ` 另有 ${estimate.skippedRunCount} 个组合不满足运行条件，将被跳过。`}
-              实际用量以任务完成后的账本为准。
+              实际扣减以用量记录为准。
             </p>
           )}
           <div className="yc-actions">
@@ -3229,8 +3177,7 @@ function ProjectAnalysis({
       )}
       {(jobs.length > 1 || reports.length > 1) && (
         <p className="yc-block-meta">
-          历史任务 {jobs.length} 个，报告版本 {reports.length}{" "}
-          个；历史版本保持不可变。
+          历史任务 {jobs.length} 个，报告版本 {reports.length} 个。
         </p>
       )}
     </>
@@ -3297,7 +3244,6 @@ function AnalysisJobDetail() {
             返回
           </Button>
         }
-        description="任务状态以系统记录为准；刷新页面或重新连接后仍可继续查看进度。"
         metadata={`创建于 ${formatDateTime(job.createdAt)}`}
         title="分析任务详情"
       />
@@ -3401,7 +3347,7 @@ function AnalysisJobDetail() {
         />
       ) : (
         <StatePanel
-          description="任务建立后，模型运行会在这里逐条显示。"
+          description="提交分析后可查看模型运行记录。"
           title="暂无运行记录"
         />
       )}
@@ -3532,7 +3478,6 @@ function ProjectAnswers({
             刷新记录
           </Button>
         }
-        description="按分析任务查看模型原始回答、目标品牌提及与模型返回的引用。记录来自真实模型运行，低置信和部分失败需结合原文复核。"
         title="大模型回答记录"
       />
       {!visibleJobs.length ? (
@@ -3542,7 +3487,7 @@ function ProjectAnswers({
               前往可见度分析
             </Button>
           }
-          description="先在可见度分析页发起一次分析，完成后即可逐条查看回答。"
+          description="发起分析后可查看模型回答。"
           title="暂无回答记录"
         />
       ) : (
@@ -3602,7 +3547,7 @@ function ProjectAnswers({
           </div>
           {activeJob && activeJob.status !== "completed" && (
             <StatePanel
-              description={`本任务状态：${jobStatusLabel(activeJob.status)}。已完成的回答可查看；未完成或失败的记录不计入有效结论。`}
+              description={`本任务状态：${jobStatusLabel(activeJob.status)}。仅有效回答计入评分。`}
               title="任务结果可能不完整"
               tone="stale"
             />
@@ -3687,7 +3632,7 @@ function ProjectAnswers({
                   </div>
                   {selected.result?.finishReason === "length" && (
                     <StatePanel
-                      description="模型回答达到输出上限，正文未完整；本条不会计入评分样本。请缩小问题范围后重新分析。"
+                      description="回答未完整，本条不计入评分。请缩小问题范围后重试。"
                       title="回答不完整"
                       tone="stale"
                     />
@@ -3704,7 +3649,7 @@ function ProjectAnswers({
                           {item.rank ? ` · 排名 ${item.rank}` : ""}
                         </strong>
                         <span>
-                          {item.evidenceSnippet} · 解析置信度 {item.confidence}
+                          {item.evidenceSnippet} · 识别置信度 {item.confidence}
                         </span>
                       </p>
                     ))}
@@ -3718,7 +3663,7 @@ function ProjectAnswers({
                       description={
                         selected.result?.responsePurgedAt
                           ? "正文已按数据保留规则清理。"
-                          : "该运行未产生可展示的回答正文。"
+                          : "本次运行未返回回答。"
                       }
                       title="回答正文不可查看"
                     />
@@ -3746,13 +3691,11 @@ function ProjectAnswers({
                       })}
                     </ol>
                   ) : (
-                    <p className="yc-meta">
-                      本次模型回答没有返回可用的引用链接。
-                    </p>
+                    <p className="yc-meta">模型未返回引用链接。</p>
                   )}
                 </>
               ) : (
-                <p className="yc-meta">选择左侧记录查看原文与来源。</p>
+                <p className="yc-meta">选择一条回答。</p>
               )}
             </section>
           </div>
@@ -3805,10 +3748,7 @@ function ProjectHistory({
   const reportRows = reports ?? [];
   return (
     <>
-      <PageHeader
-        description="查看历次分析报告和评分版本。评分口径不同的结果不会直接合并为趋势。"
-        title="历史报告"
-      />
+      <PageHeader metadata="不同评分版本的结果不合并趋势" title="历史报告" />
       {error ? (
         <StatePanel description={error} title="无法加载报告" tone="error" />
       ) : reportRows.length === 0 ? (
@@ -3818,7 +3758,7 @@ function ProjectHistory({
               发起第一次分析
             </Button>
           }
-          description="分析完成并生成报告后，版本记录会显示在这里。"
+          description="完成首次分析后可查看报告。"
           title="暂无历史报告"
         />
       ) : (
@@ -3924,10 +3864,7 @@ function ProjectOptimization({
     );
   return (
     <>
-      <PageHeader
-        description="建议来自最近报告的低分维度，并保留影响、投入与优先级依据。"
-        title="优化建议"
-      />
+      <PageHeader title="优化建议" />
       {!report ? (
         <StatePanel
           action={
@@ -3935,7 +3872,7 @@ function ProjectOptimization({
               发起分析
             </Button>
           }
-          description="生成第一份报告后，基于证据的建议会显示在这里。"
+          description="完成首次分析后可查看建议。"
           title="暂无可用建议"
         />
       ) : report.recommendations.length === 0 ? (
@@ -3949,7 +3886,7 @@ function ProjectOptimization({
               查看最近报告
             </Button>
           }
-          description="最近报告没有生成低分维度建议。"
+          description="本次报告暂无优化建议。"
           title="当前没有待处理建议"
         />
       ) : (
@@ -4101,18 +4038,12 @@ function ProjectAssistant({
   ] as const;
   return (
     <>
-      <PageHeader
-        description="只基于当前项目已保存的品牌、报告、竞品和分析问题回答，并明确数据时间与不确定性。"
-        title="品牌管家"
-      />
+      <PageHeader title="品牌管家" />
       {error && (
         <StatePanel description={error} title="问答暂时不可用" tone="error" />
       )}
       <section className="yc-card yc-section-card yc-form-card">
-        <FormField
-          hint="回答只参考当前项目已保存的信息，并展示引用和数据时间。"
-          label="向品牌管家提问"
-        >
+        <FormField hint="仅使用本项目资料回答。" label="向品牌管家提问">
           <textarea
             maxLength={2000}
             onChange={(event) => setQuestion(event.target.value)}
@@ -4138,7 +4069,7 @@ function ProjectAssistant({
       </section>
       {runs?.length === 0 ? (
         <StatePanel
-          description="提出第一个问题后，回答、引用和数据时间会保存在这里。"
+          description="输入问题，开始查询。"
           title="开始了解你的品牌"
         />
       ) : (
@@ -4168,9 +4099,7 @@ function ProjectAssistant({
                 <strong>
                   不确定性：{uncertaintyLevel(uncertainty?.level)}
                 </strong>
-                <span>
-                  {uncertainty?.message ?? "当前回答未提供不确定性说明。"}
-                </span>
+                <span>{uncertainty?.message ?? "未提供结果限制说明。"}</span>
               </div>
               <ul className="yc-plain-list">
                 <li>
@@ -4179,13 +4108,13 @@ function ProjectAssistant({
                     <small>
                       {run.contextSnapshot.sourceGeneratedAt
                         ? formatDateTime(run.contextSnapshot.sourceGeneratedAt)
-                        : "暂无可用报告快照"}
+                        : "暂无报告"}
                     </small>
                   </span>
                 </li>
                 <li>
                   <span>
-                    <strong>查询采样时间</strong>
+                    <strong>数据查询时间</strong>
                     <small>
                       {run.contextSnapshot.sampledAt
                         ? formatDateTime(run.contextSnapshot.sampledAt)
@@ -4267,7 +4196,6 @@ function ProjectReportDetail({
             返回历史报告
           </Button>
         }
-        description="查看本次分析的评分、证据、模型运行记录和优化建议。"
         metadata={`版本 ${report.versionNumber} · ${report.contentSnapshot.scoreVersion}`}
         title={report.title}
       />
@@ -4300,7 +4228,6 @@ function ProjectReportDetail({
         <div className="yc-section-heading">
           <div>
             <h2>模型与问题明细</h2>
-            <p>每条记录保留模型、分析问题和运行状态。</p>
           </div>
           <StatusBadge
             tone={report.status === "published" ? "success" : "neutral"}
@@ -4399,10 +4326,7 @@ function ProjectSettings({
   const displayedName = name || project.name;
   return (
     <>
-      <PageHeader
-        description="修改项目显示名称，或控制整个项目是否继续出现在活跃列表中。"
-        title="项目设置"
-      />
+      <PageHeader title="项目设置" />
       {actionError && (
         <StatePanel description={actionError} title="操作未完成" tone="error" />
       )}
@@ -4440,9 +4364,7 @@ function ProjectSettings({
         <section className="yc-card yc-section-card">
           <h2>项目状态</h2>
           <ProjectStatus status={project.status} />
-          <p className="yc-meta">
-            归档会停止新的业务操作，但保留报告、审计与历史数据。
-          </p>
+          <p className="yc-meta">归档后停止新操作，历史报告和数据保留。</p>
           {project.status === "archived" ? (
             <Button
               disabled={busy}
@@ -4539,10 +4461,7 @@ function ProjectCompetitors({
     );
   return (
     <>
-      <PageHeader
-        description="模型回答中的竞品先进入候选；排除决定会保留，后续解析不会反复推荐。"
-        title="竞品池"
-      />
+      <PageHeader metadata="排除后不再推荐此竞品" title="竞品池" />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
@@ -4601,7 +4520,7 @@ function ProjectCompetitors({
         />
       ) : (
         <StatePanel
-          description="完成分析与回答解析后，竞品候选会显示在这里。"
+          description="分析后可查看识别到的竞品。"
           title="暂无竞品候选"
         />
       )}
@@ -4813,10 +4732,7 @@ function UsagePage({ workspaceId }: { readonly workspaceId?: string }) {
   }, [workspaceId]);
   return (
     <>
-      <PageHeader
-        description="查看额度余额与全部变动记录。每次增加、扣减和冲正都会单独留痕，方便核对。"
-        title="用量与额度"
-      />
+      <PageHeader title="用量与额度" />
       {error ? (
         <StatePanel description={error} title="无法加载用量" tone="error" />
       ) : !usage ? (
@@ -4860,7 +4776,7 @@ function UsagePage({ workspaceId }: { readonly workspaceId?: string }) {
             />
           ) : (
             <StatePanel
-              description="管理员发放额度或发起分析后会显示记录。"
+              description="额度发放和分析扣减会记录在这里。"
               title="暂无账本记录"
             />
           )}
@@ -4960,7 +4876,7 @@ function NotFoundPage() {
         action={
           <Button onClick={() => navigate("/dashboard")}>返回概览</Button>
         }
-        description="当前地址无对应页面，或你没有访问该资源的权限。"
+        description="请检查地址或返回工作台。"
         title="无法打开此页面"
         tone="error"
       />

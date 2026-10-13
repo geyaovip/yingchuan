@@ -16,17 +16,17 @@ import { capabilities, productUrl, workflow } from "./content";
 const reportSections = [
   {
     title: "模型回答",
-    description: "按分析问题和模型查看回答原文，确认品牌是否被提及。",
+    description: "查看回答原文和品牌提及。",
     fields: ["分析问题", "模型与运行时间", "回答原文"],
   },
   {
     title: "提及与来源",
-    description: "核对品牌提及、竞品候选及模型实际返回的引用。",
+    description: "核对品牌、竞品和引用来源。",
     fields: ["品牌提及", "竞品候选", "来源引用"],
   },
   {
     title: "评分与建议",
-    description: "结合有效样本、置信度和限制说明阅读评分与优化建议。",
+    description: "查看评分、样本和优化建议。",
     fields: ["有效样本", "评分版本", "结果限制"],
   },
 ] as const;
@@ -89,8 +89,7 @@ export function App() {
               <span>回答你的品牌</span>
             </h1>
             <p className="hero-intro">
-              从用户提问出发，查看已启用模型如何描述和推荐你的品牌。
-              每份报告都能回到模型回答、提及与来源，核对结论的依据。
+              查看 AI 如何提及和推荐你的品牌，找到有依据的优化方向。
             </p>
             <div className="hero-actions">
               <a className="button button-primary" href={productUrl}>
@@ -133,21 +132,21 @@ export function App() {
                   <span>01</span>
                   <div>
                     <strong>确定分析范围</strong>
-                    <p>确认品牌、用户提问和参与分析的模型。</p>
+                    <p>选择品牌、问题和模型。</p>
                   </div>
                 </li>
                 <li>
                   <span>02</span>
                   <div>
                     <strong>保留回答依据</strong>
-                    <p>查看模型回答原文、品牌提及与返回的引用。</p>
+                    <p>查看回答、提及和引用。</p>
                   </div>
                 </li>
                 <li>
                   <span>03</span>
                   <div>
                     <strong>形成分析报告</strong>
-                    <p>结合有效样本和结果限制，安排下一步优化。</p>
+                    <p>查看评分和优化建议。</p>
                   </div>
                 </li>
               </ol>
@@ -180,7 +179,6 @@ export function App() {
             <p className="section-label">分析路径</p>
             <div>
               <h2>四步获得第一份品牌 AI 认知报告</h2>
-              <p>复杂的模型调用、解析和证据整理，由映川收进一条透明流程。</p>
             </div>
           </div>
           <ol className="workflow-list">
@@ -203,10 +201,7 @@ export function App() {
           <div className="evidence-copy">
             <p className="section-label">报告依据</p>
             <h2>先展示证据，再给结论</h2>
-            <p>
-              报告中的回答和评分来自实际分析任务。你可以核对提问、模型回答原文、
-              品牌提及与模型返回的来源，并看到样本和结果限制。
-            </p>
+            <p>核对模型回答与引用来源，查看评分依据和结果限制。</p>
             <dl>
               <div>
                 <dt>问题</dt>
