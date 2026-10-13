@@ -594,9 +594,6 @@ export function LoginPanel({
           <span className="yc-brand__mark">映</span>
           映川
         </a>
-        <p className="yc-eyebrow">
-          {audience === "admin" ? "平台运营" : "品牌 AI 可见度分析"}
-        </p>
         <h1 id="login-heading">
           {codeRequested
             ? "输入验证码"
@@ -604,11 +601,11 @@ export function LoginPanel({
               ? "登录管理控制台"
               : "登录映川工作台"}
         </h1>
-        <p className="yc-auth-card__intro">
-          {codeRequested
-            ? `验证码已发送至 ${email}，10 分钟内有效。`
-            : "输入邮箱地址，获取一次性登录验证码。"}
-        </p>
+        {codeRequested && (
+          <p className="yc-auth-card__intro">
+            验证码已发送至 {email}，10 分钟内有效。
+          </p>
+        )}
         <form onSubmit={(event) => void submit(event)}>
           <FormField label="邮箱地址">
             <input
@@ -667,7 +664,7 @@ export function LoginPanel({
             </Button>
           )}
         </form>
-        <p className="yc-meta">验证码 10 分钟内有效，请勿转发给任何人。</p>
+        <p className="yc-meta">验证码仅用于登录，请勿转发。</p>
       </section>
     </main>
   );
@@ -727,7 +724,7 @@ export function StatePanel({
   title,
 }: {
   readonly action?: ReactNode;
-  readonly description: string;
+  readonly description?: string;
   readonly tone?: "empty" | "error" | "stale" | "forbidden";
   readonly title: string;
 }) {
@@ -748,7 +745,7 @@ export function StatePanel({
       )}
       <div>
         <h2>{title}</h2>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
         {action}
       </div>
     </section>

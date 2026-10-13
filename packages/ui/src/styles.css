@@ -503,6 +503,20 @@ a {
   margin: 0 0 18px;
   font-size: 17px;
 }
+.yc-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.yc-section-heading h2 {
+  margin: 0;
+}
+.yc-section-heading p {
+  margin: 6px 0 0;
+}
 .yc-section-card > .yc-button {
   margin-top: 16px;
 }
@@ -917,7 +931,7 @@ a {
   box-shadow: 0 20px 70px rgba(39, 37, 30, 0.055);
 }
 .yc-brand--auth {
-  margin: -8px 0 42px -8px;
+  margin: -8px 0 24px -8px;
 }
 .yc-auth-card form {
   display: grid;
