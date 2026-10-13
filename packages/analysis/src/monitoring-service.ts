@@ -75,11 +75,28 @@ export function nextMonitoringAt(
   throw new AnalysisServiceError("MONITORING_TIME_INVALID", 400);
 }
 
+export interface MonitoringSiteNotice {
+  readonly userId: string;
+  readonly workspaceId: string;
+  readonly type: string;
+  readonly title: string;
+  readonly body: string;
+  readonly href: string;
+  readonly objectType: string;
+  readonly objectId: string;
+  readonly idempotencyKey: string;
+}
+export type MonitoringNoticeWriter = (
+  transaction: Prisma.TransactionClient,
+  input: MonitoringSiteNotice,
+) => Promise<void>;
+
 export class MonitoringApplicationService {
   constructor(
     private readonly database: PrismaClient,
     private readonly gateway: ModelGatewayApplicationService,
     private readonly analysis: AnalysisApplicationService,
+    private readonly writeNotice: MonitoringNoticeWriter,
   ) {}
 
   private async project(projectId: string, userId: string, permission: string) {
@@ -589,39 +606,34 @@ export class MonitoringApplicationService {
         id,
       );
       if (status !== "submitted")
-        await tx.notification.upsert({
-          where: { idempotencyKey: `monitoring:${id}:${actor.userId}` },
-          update: {},
-          create: {
-            id: uuidv7(),
-            userId: actor.userId,
-            workspaceId,
-            type: "monitoring.failure",
-            title: status === "skipped" ? "监测未执行" : "监测执行失败",
-            body:
-              (
-                {
-                  RESOURCE_NOT_FOUND:
-                    "创建者的项目权限已变更，请联系工作区管理员。",
-                  PROJECT_NOT_READY: "项目尚未就绪，请完成品牌确认。",
-                  MONITORING_PAUSED: "计划已暂停。",
-                  MONITORING_SELECTION_UNAVAILABLE:
-                    "部分问题或模型已停用，请检查计划配置。",
-                  MONITORING_PRICE_UNAVAILABLE:
-                    "模型价格尚未配置，请联系管理员补齐后重试。",
-                  MONITORING_BUDGET_EXCEEDED:
-                    "预计费用超过单次上限，请调整计划配置或费用上限。",
-                  ANALYSIS_QUOTA_INSUFFICIENT: "工作区可用额度不足。",
-                  ANALYSIS_HAS_NO_ELIGIBLE_RUNS:
-                    "当前没有可执行的问题与模型组合。",
-                } as Record<string, string>
-              )[errorCode ?? ""] ??
-              "本次监测提交失败，已停止重试。请联系管理员检查执行记录。",
-            href: `/projects/${projectId}/monitoring`,
-            objectType: "MonitoringExecution",
-            objectId: id,
-            idempotencyKey: `monitoring:${id}:${actor.userId}`,
-          },
+        await this.writeNotice(tx, {
+          userId: actor.userId,
+          workspaceId,
+          type: "monitoring.failure",
+          title: status === "skipped" ? "监测未执行" : "监测执行失败",
+          body:
+            (
+              {
+                RESOURCE_NOT_FOUND:
+                  "创建者的项目权限已变更，请联系工作区管理员。",
+                PROJECT_NOT_READY: "项目当前无法运行分析，请检查项目状态。",
+                MONITORING_PAUSED: "计划已暂停。",
+                MONITORING_SELECTION_UNAVAILABLE:
+                  "部分问题或模型已停用，请检查计划配置。",
+                MONITORING_PRICE_UNAVAILABLE:
+                  "模型价格尚未配置，请联系管理员补齐后重试。",
+                MONITORING_BUDGET_EXCEEDED:
+                  "预计费用超过单次上限，请调整计划配置或费用上限。",
+                ANALYSIS_QUOTA_INSUFFICIENT: "工作区可用额度不足。",
+                ANALYSIS_HAS_NO_ELIGIBLE_RUNS:
+                  "当前没有可执行的问题与模型组合。",
+              } as Record<string, string>
+            )[errorCode ?? ""] ??
+            "本次监测提交失败，已停止重试。请联系管理员检查执行记录。",
+          href: `/projects/${projectId}/monitoring`,
+          objectType: "MonitoringExecution",
+          objectId: id,
+          idempotencyKey: `monitoring:${id}:${actor.userId}`,
         });
     });
   }

@@ -18,7 +18,31 @@ export interface NotificationActor {
   readonly userId: string;
 }
 
+export interface SiteNoticeInput {
+  readonly userId: string;
+  readonly workspaceId: string;
+  readonly type: string;
+  readonly title: string;
+  readonly body: string;
+  readonly href: string;
+  readonly objectType: string;
+  readonly objectId: string;
+  readonly idempotencyKey: string;
+}
+
 export class NotificationApplicationService {
+  /** The caller supplies the validated recipient and transaction for atomic domain writes. */
+  static async createSiteNotice(
+    transaction: Prisma.TransactionClient,
+    input: SiteNoticeInput,
+  ): Promise<void> {
+    await transaction.notification.upsert({
+      where: { idempotencyKey: input.idempotencyKey },
+      update: {},
+      create: { ...input, id: uuidv7() },
+    });
+  }
+
   constructor(
     private readonly database: PrismaClient,
     private readonly secretBox: SecretBox,

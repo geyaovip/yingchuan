@@ -243,3 +243,9 @@
 .yc-page-header__actions > .yc-inline-actions {
   width: 100%;
 }
+
+@media (max-width: 600px) {
+  .yc-trend-chart text {
+    font-size: 20px;
+  }
+}
