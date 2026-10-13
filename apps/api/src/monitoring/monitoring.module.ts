@@ -1,3 +1,4 @@
+import { NotificationApplicationService } from "@yingchuan/notifications";
 import { Module } from "@nestjs/common";
 import {
   AnalysisApplicationService,
@@ -30,7 +31,14 @@ import { MonitoringController } from "./monitoring.controller.js";
         database: PrismaClient,
         gateway: ModelGatewayApplicationService,
         analysis: AnalysisApplicationService,
-      ) => new MonitoringApplicationService(database, gateway, analysis),
+      ) =>
+        new MonitoringApplicationService(
+          database,
+          gateway,
+          analysis,
+          (tx, input) =>
+            NotificationApplicationService.createSiteNotice(tx, input),
+        ),
     },
   ],
 })

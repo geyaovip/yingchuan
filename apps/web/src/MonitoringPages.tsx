@@ -127,7 +127,7 @@ const errorMessage = (error: unknown) =>
   error instanceof ApiError ? error.message : "加载失败，请稍后重试。";
 const percent = (value: number | null) => (value === null ? "—" : `${value}%`);
 const money = (micros: string) =>
-  `¥${(Number(micros) / 1_000_000).toFixed(4).replace(/0+$/, "").replace(/\.$/, "")}`;
+  `¥${(Number(micros) / 1_000_000).toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
 const labels: Record<string, string> = {
   open: "待处理",
   in_progress: "进行中",
@@ -550,7 +550,7 @@ function TrendChart({
   const current = cohorts.includes(selected) ? selected : cohorts.at(-1);
   const points = trends.filter((point) => point.cohort === current);
   const x = (i: number) =>
-    points.length < 2 ? 300 : 35 + (i / (points.length - 1)) * 530;
+    points.length < 2 ? 300 : 60 + (i / (points.length - 1)) * 505;
   const y = (value: number) => 155 - value * 1.2;
   return (
     <section className="yc-card yc-monitor-section">
@@ -583,7 +583,7 @@ function TrendChart({
         {[0, 50, 100].map((value) => (
           <g key={value}>
             <line
-              x1="35"
+              x1="60"
               x2="565"
               y1={y(value)}
               y2={y(value)}
@@ -632,7 +632,9 @@ function TrendChart({
               <text
                 x={x(i)}
                 y="183"
-                textAnchor="middle"
+                textAnchor={
+                  points.length === 1 ? "middle" : i === 0 ? "start" : "end"
+                }
                 fontSize="11"
                 fill="var(--yc-text-muted)"
               >
@@ -1055,7 +1057,7 @@ export function MonitoringPage({ projectId }: { projectId: string }) {
                           </select>
                         </FormField>
                       )}
-                      <FormField label="单次费用上限（元）">
+                      <FormField label="单次预计费用上限（元）">
                         <input
                           required
                           type="number"
@@ -1103,7 +1105,7 @@ export function MonitoringPage({ projectId }: { projectId: string }) {
                       />
                     </div>
                     <p className="yc-monitor-note">
-                      执行时使用所选问题与模型的最新版本；费用超过上限或额度不足时跳过。报告生成后发送站内通知。
+                      执行时使用所选问题与模型的最新版本；预计费用超过上限或额度不足时跳过，费用按实际用量结算。报告生成后发送站内通知。
                     </p>
                     <Button
                       type="submit"
@@ -1205,7 +1207,7 @@ export function MonitoringPage({ projectId }: { projectId: string }) {
                       {row.promptIds.length} 个问题 ·{" "}
                       {row.modelConfigIds.length} 个模型
                     </span>
-                    <span>单次上限 {money(row.maxCostMicros)}</span>
+                    <span>预计费用上限 {money(row.maxCostMicros)}</span>
                     <span>
                       {row.active
                         ? `下次执行 ${date(row.nextRunAt, row.timezone)}`

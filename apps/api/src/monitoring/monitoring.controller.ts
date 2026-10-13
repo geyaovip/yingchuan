@@ -229,7 +229,7 @@ export class MonitoringController {
           IDEMPOTENCY_KEY_REQUIRED: "请求标识无效，请重试。",
           IDEMPOTENCY_CONFLICT: "请求内容已变更，请重新核算后提交。",
           INSIGHTS_RANGE_TOO_LARGE: "数据量超过查询上限，请缩短统计时间。",
-          PROJECT_NOT_READY: "项目尚未完成品牌确认。",
+          PROJECT_NOT_READY: "项目当前无法运行分析，请检查项目状态。",
         };
         throw new HttpException(
           {

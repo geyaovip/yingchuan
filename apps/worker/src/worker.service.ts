@@ -97,6 +97,7 @@ export class WorkerService implements OnModuleInit, OnApplicationShutdown {
       this.database,
       gateway,
       analysis,
+      (tx, input) => NotificationApplicationService.createSiteNotice(tx, input),
     );
     const runMonitoring = async () => {
       if (this.monitoringRunning) return;
