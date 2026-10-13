@@ -297,7 +297,10 @@ const mainNavigation: readonly NavigationItem[] = [
 export function App() {
   const [session, setSession] = useState<SessionView>();
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+  const [sessionError, setSessionError] = useState<string>();
+  const loadSession = useCallback(() => {
+    setLoading(true);
+    setSessionError(undefined);
     void api
       .getSession()
       .then((next) => {
@@ -307,14 +310,35 @@ export function App() {
           setSession(undefined);
         }
       })
-      .catch(() => setSession(undefined))
+      .catch((caught: unknown) => {
+        setSession(undefined);
+        if (!(caught instanceof ApiError && caught.status === 401))
+          setSessionError(messageFor(caught));
+      })
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    const timer = globalThis.setTimeout(loadSession, 0);
+    return () => globalThis.clearTimeout(timer);
+  }, [loadSession]);
   if (loading)
     return (
       <main className="yc-auth-page">
         <section className="yc-auth-card">
           <Skeleton lines={4} />
+        </section>
+      </main>
+    );
+  if (sessionError)
+    return (
+      <main className="yc-auth-page">
+        <section className="yc-auth-card">
+          <StatePanel
+            action={<Button onClick={loadSession}>重新连接</Button>}
+            description={sessionError}
+            title="暂时无法连接映川"
+            tone="error"
+          />
         </section>
       </main>
     );
@@ -484,6 +508,7 @@ function AuthenticatedApp({ session }: { readonly session: SessionView }) {
           globalThis.location.href = "/login";
         });
       }}
+      onNavigate={(href) => navigate(href)}
       onWorkspaceChange={selectWorkspace}
       projectNavigation={projectItems}
       projectTitle={activeProject?.name}
@@ -686,7 +711,9 @@ function Dashboard({
     <>
       <PageHeader
         actions={
-          <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
+          workspaceId && projects?.length ? (
+            <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
+          ) : undefined
         }
         description="查看品牌项目、分析进展和需要处理的事项。"
         title="工作台"
@@ -704,7 +731,7 @@ function Dashboard({
           action={
             <Button onClick={() => navigate("/workspaces")}>创建工作区</Button>
           }
-          description="先创建工作区，再邀请团队成员并建立第一个品牌项目。"
+          description="先创建工作区，再建立第一个品牌项目。团队成员可以稍后邀请。"
           title="从工作区开始"
         />
       ) : projects?.length ? (
@@ -725,7 +752,7 @@ function Dashboard({
                   ).length
                 }
               </strong>
-              <span>已就绪项目</span>
+              <span>已确认品牌</span>
             </article>
             <article>
               <strong>
@@ -789,7 +816,7 @@ function Dashboard({
               创建第一个项目
             </Button>
           }
-          description="当前工作区还没有品牌项目。创建项目后即可开始品牌识别和内容分析。"
+          description="当前工作区还没有品牌项目。创建项目后即可确认品牌、配置分析问题并发起检测。"
           title="创建第一个品牌项目"
         />
       )}
@@ -1348,9 +1375,11 @@ function ProjectsPage({ workspaceId }: { readonly workspaceId?: string }) {
     <>
       <PageHeader
         actions={
-          <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
+          workspaceId && projects.length > 0 ? (
+            <Button onClick={() => navigate("/projects/new")}>创建项目</Button>
+          ) : undefined
         }
-        description="每个项目拥有独立的品牌实体、认知源、分析与报告历史。"
+        description="分别管理品牌信息、认知源、分析任务和报告历史。"
         title="品牌项目"
       />
       {!workspaceId ? (
@@ -1590,12 +1619,14 @@ function ProjectOnboarding({
     <>
       <PageHeader
         actions={
-          <Button intent="secondary" onClick={() => void reload()}>
-            刷新状态
-          </Button>
+          pendingCandidates.length === 0 ? (
+            <Button intent="secondary" onClick={() => void reload()}>
+              刷新状态
+            </Button>
+          ) : undefined
         }
         description="系统只把候选交给你确认，不会自动把同名品牌合并。"
-        metadata={`状态：${onboardingStatusLabel(project.onboardingStatus)}`}
+        metadata={`状态：${pendingCandidates.length > 0 ? "待确认品牌" : onboardingStatusLabel(project.onboardingStatus)}`}
         title={project.name}
       />
       {actionError && (
@@ -1698,11 +1729,13 @@ function ProjectOverview({
     <>
       <PageHeader
         actions={
-          <Button onClick={() => navigate(`/projects/${project.id}/reports`)}>
-            查看可见度分析
-          </Button>
+          latest ? (
+            <Button onClick={() => navigate(`/projects/${project.id}/reports`)}>
+              查看可见度分析
+            </Button>
+          ) : undefined
         }
-        description="一屏查看品牌分析结果、有效样本与下一步操作。所有指标来自最近一次真实报告。"
+        description="查看品牌分析进展、报告结果和下一步操作。"
         title={project.name}
       />
       {summaryError && (
@@ -1745,11 +1778,23 @@ function ProjectOverview({
       ) : reports ? (
         <StatePanel
           action={
-            <Button onClick={() => navigate(`/projects/${project.id}/reports`)}>
-              开始首次分析
+            <Button
+              onClick={() =>
+                navigate(
+                  `/projects/${project.id}/${prompts?.some((item) => item.enabled) ? "reports" : "prompts"}`,
+                )
+              }
+            >
+              {prompts?.some((item) => item.enabled)
+                ? "核对预计用量"
+                : "配置分析问题"}
             </Button>
           }
-          description="确认用户提问并运行模型后，这里会展示第一份可见度结果。"
+          description={
+            prompts?.some((item) => item.enabled)
+              ? "分析问题已准备好。核对预计用量并提交任务后，这里会展示第一份报告。"
+              : "先添加并启用分析问题，再核对预计用量、提交首次分析。"
+          }
           title="还没有分析报告"
         />
       ) : (
@@ -1757,7 +1802,7 @@ function ProjectOverview({
       )}
       <div className="yc-content-grid yc-overview-grid">
         <section className="yc-card yc-section-card">
-          <h2>监测对象</h2>
+          <h2>品牌信息</h2>
           <p>
             <strong>{project.brandEntity?.canonicalName ?? "待确认"}</strong>
           </p>
@@ -1774,7 +1819,7 @@ function ProjectOverview({
           </Button>
         </section>
         <section className="yc-card yc-section-card">
-          <h2>品牌资料</h2>
+          <h2>认知源</h2>
           <p>{project.knowledgeSources.length} 个来源</p>
           <p className="yc-meta">仅已确认来源可进入抓取队列。</p>
           <Button
@@ -1785,32 +1830,34 @@ function ProjectOverview({
           </Button>
         </section>
       </div>
-      <section className="yc-card yc-section-card yc-overview-next">
-        <h2>继续分析</h2>
-        <div className="yc-overview-links">
-          <button
-            onClick={() => navigate(`/projects/${project.id}/answers`)}
-            type="button"
-          >
-            <strong>查看模型回答</strong>
-            <span>按问题和模型复核原文、提及与引用</span>
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${project.id}/competitors`)}
-            type="button"
-          >
-            <strong>核对竞品</strong>
-            <span>确认或排除解析出的竞品候选</span>
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${project.id}/optimization`)}
-            type="button"
-          >
-            <strong>查看优化建议</strong>
-            <span>根据最新报告确定下一步</span>
-          </button>
-        </div>
-      </section>
+      {latest && (
+        <section className="yc-card yc-section-card yc-overview-next">
+          <h2>继续分析</h2>
+          <div className="yc-overview-links">
+            <button
+              onClick={() => navigate(`/projects/${project.id}/answers`)}
+              type="button"
+            >
+              <strong>查看模型回答</strong>
+              <span>按问题和模型复核原文、提及与引用</span>
+            </button>
+            <button
+              onClick={() => navigate(`/projects/${project.id}/competitors`)}
+              type="button"
+            >
+              <strong>核对竞品</strong>
+              <span>确认或排除解析出的竞品候选</span>
+            </button>
+            <button
+              onClick={() => navigate(`/projects/${project.id}/optimization`)}
+              type="button"
+            >
+              <strong>查看优化建议</strong>
+              <span>根据最新报告确定下一步</span>
+            </button>
+          </div>
+        </section>
+      )}
     </>
   );
 }
@@ -2333,53 +2380,56 @@ function ProjectPrompts({
             生成建议问题
           </Button>
         }
-        description="按分组维护真实用户提问、地域和版本。启用的提问参与下一次分析；历史分析保留当时的问题版本。"
+        description="按分组维护用户可能提出的问题、地域和版本。启用的提问参与下一次分析；历史分析保留当时的问题版本。"
         title="用户提问"
       />
-      <AnalysisEstimatePanel projectId={project.id} />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
-      <div className="yc-answer-filters yc-prompt-filters">
-        <label>
-          搜索提问
-          <input
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="搜索问题内容"
-            value={search}
-          />
-        </label>
-        <label>
-          分组
-          <select
-            onChange={(event) => setGroupFilter(event.target.value)}
-            value={groupFilter}
-          >
-            <option value="all">全部分组</option>
-            {groups.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          启用状态
-          <select
-            onChange={(event) => setStatusFilter(event.target.value)}
-            value={statusFilter}
-          >
-            <option value="all">全部状态</option>
-            <option value="enabled">已启用</option>
-            <option value="disabled">已停用</option>
-          </select>
-        </label>
-        <p className="yc-prompt-count">
-          {prompts.filter((item) => item.enabled).length} 个启用 /{" "}
-          {prompts.length} 个提问
-        </p>
-      </div>
-      <div className="yc-content-grid">
+      {prompts.length > 0 && (
+        <div className="yc-answer-filters yc-prompt-filters">
+          <label>
+            搜索提问
+            <input
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="搜索问题内容"
+              value={search}
+            />
+          </label>
+          <label>
+            分组
+            <select
+              onChange={(event) => setGroupFilter(event.target.value)}
+              value={groupFilter}
+            >
+              <option value="all">全部分组</option>
+              {groups.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            启用状态
+            <select
+              onChange={(event) => setStatusFilter(event.target.value)}
+              value={statusFilter}
+            >
+              <option value="all">全部状态</option>
+              <option value="enabled">已启用</option>
+              <option value="disabled">已停用</option>
+            </select>
+          </label>
+          <p className="yc-prompt-count">
+            {prompts.filter((item) => item.enabled).length} 个启用 /{" "}
+            {prompts.length} 个提问
+          </p>
+        </div>
+      )}
+      <div
+        className={`yc-content-grid${prompts.length === 0 ? " yc-prompt-first-use" : ""}`}
+      >
         <section>
           {prompts.length && !visiblePrompts.length ? (
             <StatePanel
@@ -2661,41 +2711,35 @@ function ProjectPrompts({
   );
 }
 
-function AnalysisEstimatePanel({ projectId }: { readonly projectId: string }) {
-  const [estimate, setEstimate] = useState<AnalysisEstimateResponse>();
-  const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const load = async () => {
-    setBusy(true);
-    setError(undefined);
-    try {
-      setEstimate(
-        await api.request<AnalysisEstimateResponse>(
-          `/projects/${projectId}/analysis-estimates`,
-          { method: "POST" },
-        ),
-      );
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setBusy(false);
-    }
-  };
+function AnalysisEstimatePanel({
+  busy,
+  error,
+  estimate,
+  onRefresh,
+}: {
+  readonly busy: boolean;
+  readonly error?: string;
+  readonly estimate?: AnalysisEstimateResponse;
+  readonly onRefresh: () => void;
+}) {
   return (
     <section className="yc-card yc-section-card">
       <div className="yc-section-heading">
         <div>
-          <h2>分析估算</h2>
-          <p>
-            根据当前启用的分析问题、模型版本和价格计算；不满足联网要求的模型会自动跳过。
-          </p>
+          <h2>预计用量</h2>
+          <p>按当前启用的分析问题、可用模型和价格计算，提交前会再次核对。</p>
         </div>
-        <Button disabled={busy} intent="ghost" onClick={() => void load()}>
-          {busy ? "计算中…" : "重新估算"}
+        <Button disabled={busy} intent="ghost" onClick={onRefresh}>
+          {busy ? "计算中…" : "更新估算"}
         </Button>
       </div>
-      {error && <p className="yc-form-field__error">{error}</p>}
-      {estimate && (
+      {error && (
+        <p className="yc-form-field__error" role="alert">
+          {error}
+        </p>
+      )}
+      {estimate &&
+      (estimate.eligibleRunCount > 0 || estimate.skippedRunCount > 0) ? (
         <div className="yc-metric-grid">
           <article>
             <strong>{estimate.eligibleRunCount}</strong>
@@ -2703,14 +2747,20 @@ function AnalysisEstimatePanel({ projectId }: { readonly projectId: string }) {
           </article>
           <article>
             <strong>{estimate.skippedRunCount}</strong>
-            <span>已跳过</span>
+            <span>不满足条件的组合</span>
           </article>
           <article>
             <strong>{formatMicros(estimate.estimatedCostMicros)}</strong>
             <span>预估模型成本</span>
           </article>
         </div>
-      )}
+      ) : estimate ? (
+        <p className="yc-meta">
+          当前没有可执行的组合。请先启用分析问题，并确认模型已由管理员配置。
+        </p>
+      ) : !error ? (
+        <Skeleton lines={2} />
+      ) : null}
     </section>
   );
 }
@@ -2729,7 +2779,38 @@ function ProjectAnalysis({
   const [report, setReport] = useState<ReportVersionResponse>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [estimate, setEstimate] = useState<AnalysisEstimateResponse>();
+  const [estimateError, setEstimateError] = useState<string>();
+  const [estimateBusy, setEstimateBusy] = useState(false);
+  const [confirmAnalysis, setConfirmAnalysis] = useState(false);
   const projectId = project?.id;
+  const loadEstimate = useCallback(async () => {
+    if (!projectId) return undefined;
+    setEstimateBusy(true);
+    setEstimateError(undefined);
+    try {
+      const next = await api.request<AnalysisEstimateResponse>(
+        `/projects/${projectId}/analysis-estimates`,
+        { method: "POST" },
+      );
+      setEstimate(next);
+      return next;
+    } catch (caught) {
+      setEstimate(undefined);
+      setEstimateError(messageFor(caught));
+      return undefined;
+    } finally {
+      setEstimateBusy(false);
+    }
+  }, [projectId]);
+  useEffect(() => {
+    const timer = globalThis.setTimeout(() => {
+      setEstimate(undefined);
+      setConfirmAnalysis(false);
+      void loadEstimate();
+    }, 0);
+    return () => globalThis.clearTimeout(timer);
+  }, [loadEstimate]);
   const load = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -2786,8 +2867,10 @@ function ProjectAnalysis({
     try {
       await operation();
       await load();
+      return true;
     } catch (caught) {
       setError(messageFor(caught));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -2805,29 +2888,90 @@ function ProjectAnalysis({
     <>
       <PageHeader
         actions={
-          <Button
-            disabled={busy}
-            onClick={() =>
-              void execute(() =>
-                api.request(`/projects/${project.id}/analysis-jobs`, {
-                  headers: {
-                    "Idempotency-Key": globalThis.crypto.randomUUID(),
-                  },
-                  method: "POST",
-                }),
-              )
-            }
-          >
-            {busy ? "提交中…" : "开始新分析"}
-          </Button>
+          estimate?.eligibleRunCount === 0 ? (
+            <Button onClick={() => navigate(`/projects/${project.id}/prompts`)}>
+              检查分析问题
+            </Button>
+          ) : (
+            <Button
+              disabled={busy || estimateBusy}
+              onClick={() => {
+                void loadEstimate().then((next) => {
+                  if (next) setConfirmAnalysis(true);
+                });
+              }}
+            >
+              {estimateBusy ? "核对估算中…" : "发起新分析"}
+            </Button>
+          )
         }
-        description="选择分析问题并查看预计用量，提交后可随时离开页面，任务会继续运行。"
+        description="先确认分析问题和预计用量，再提交任务；离开页面后仍可查看进度。"
         title="AI 可见度分析"
       />
       {error && (
         <StatePanel description={error} title="操作未完成" tone="error" />
       )}
-      <AnalysisEstimatePanel projectId={project.id} />
+      <AnalysisEstimatePanel
+        busy={estimateBusy}
+        error={estimateError}
+        estimate={estimate}
+        onRefresh={() => void loadEstimate()}
+      />
+      {confirmAnalysis && estimate && (
+        <section
+          aria-labelledby="analysis-confirm-heading"
+          className="yc-card yc-section-card"
+        >
+          <h2 id="analysis-confirm-heading">确认本次分析</h2>
+          {estimate.eligibleRunCount === 0 ? (
+            <StatePanel
+              action={
+                <Button
+                  intent="secondary"
+                  onClick={() => navigate(`/projects/${project.id}/prompts`)}
+                >
+                  检查分析问题
+                </Button>
+              }
+              description="当前没有可运行的分析组合。请检查已启用的分析问题；若问题正常，请联系管理员核对模型配置。"
+              title="暂时无法提交"
+              tone="stale"
+            />
+          ) : (
+            <p className="yc-meta">
+              将执行 {estimate.eligibleRunCount} 次模型分析，预估模型成本{" "}
+              {formatMicros(estimate.estimatedCostMicros)}。
+              {estimate.skippedRunCount > 0 &&
+                ` 另有 ${estimate.skippedRunCount} 个组合不满足运行条件，将被跳过。`}
+              实际用量以任务完成后的账本为准。
+            </p>
+          )}
+          <div className="yc-actions">
+            {estimate.eligibleRunCount > 0 && (
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  void execute(() =>
+                    api.request(`/projects/${project.id}/analysis-jobs`, {
+                      headers: {
+                        "Idempotency-Key": globalThis.crypto.randomUUID(),
+                      },
+                      method: "POST",
+                    }),
+                  ).then((submitted) => {
+                    if (submitted) setConfirmAnalysis(false);
+                  });
+                }}
+              >
+                {busy ? "提交中…" : "确认并提交"}
+              </Button>
+            )}
+            <Button intent="ghost" onClick={() => setConfirmAnalysis(false)}>
+              {estimate.eligibleRunCount > 0 ? "取消" : "关闭"}
+            </Button>
+          </div>
+        </section>
+      )}
       {report && (
         <section className="yc-card yc-section-card">
           <div className="yc-section-heading">
@@ -2871,7 +3015,7 @@ function ProjectAnalysis({
               <span>失败样本</span>
             </article>
           </div>
-          <h3>基础优化建议</h3>
+          <h3>优化建议</h3>
           {report.recommendations.length === 0 ? (
             <p className="yc-meta">当前没有低分维度建议。</p>
           ) : (
@@ -2960,9 +3104,9 @@ function ProjectAnalysis({
           </div>
         </section>
       )}
-      {!selected ? (
+      {!selected && estimate?.eligibleRunCount === 0 ? null : !selected ? (
         <StatePanel
-          description="确认估算和额度后发起第一次分析。"
+          description="确认预计用量后发起第一次分析。"
           title="暂无分析任务"
         />
       ) : (
@@ -4784,12 +4928,12 @@ function ProjectStatus({ status }: { readonly status: string }) {
           ? "warning"
           : "neutral";
   const labels: Record<string, string> = {
-    active: "运行中",
+    active: "已启用",
     archived: "已归档",
-    confirmed: "已确认",
+    confirmed: "品牌已确认",
     draft: "草稿",
     identifying: "识别中",
-    ready: "已就绪",
+    ready: "品牌已确认",
     rejected: "已停用",
     unavailable: "不可用",
     waiting_confirmation: "待确认",

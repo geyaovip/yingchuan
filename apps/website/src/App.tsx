@@ -9,38 +9,25 @@ import {
   ShieldCheck,
   Target,
 } from "@phosphor-icons/react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { capabilities, productUrl, workflow } from "./content";
 
-const modelRows = [
+const reportSections = [
   {
-    model: "豆包",
-    score: 78,
-    tendency: "高",
-    completeness: 4,
-    confidence: "± 6%",
+    title: "模型回答",
+    description: "按分析问题和模型查看回答原文，确认品牌是否被提及。",
+    fields: ["分析问题", "模型与运行时间", "回答原文"],
   },
   {
-    model: "Kimi",
-    score: 72,
-    tendency: "中高",
-    completeness: 4,
-    confidence: "± 7%",
+    title: "提及与来源",
+    description: "核对品牌提及、竞品候选及模型实际返回的引用。",
+    fields: ["品牌提及", "竞品候选", "来源引用"],
   },
   {
-    model: "GLM",
-    score: 64,
-    tendency: "中",
-    completeness: 3,
-    confidence: "± 8%",
-  },
-  {
-    model: "DeepSeek",
-    score: 58,
-    tendency: "中",
-    completeness: 3,
-    confidence: "± 9%",
+    title: "评分与建议",
+    description: "结合有效样本、置信度和限制说明阅读评分与优化建议。",
+    fields: ["有效样本", "评分版本", "结果限制"],
   },
 ] as const;
 
@@ -64,9 +51,9 @@ function Arrow() {
 }
 
 export function App() {
-  const [activeModel, setActiveModel] = useState<(typeof modelRows)[number]>(
-    modelRows[0],
-  );
+  const [activeSection, setActiveSection] = useState<
+    (typeof reportSections)[number]
+  >(reportSections[0]);
   return (
     <div className="site-shell">
       <a className="skip-link" href="#main">
@@ -102,8 +89,8 @@ export function App() {
               <span>回答你的品牌</span>
             </h1>
             <p className="hero-intro">
-              围绕真实用户问题，分析可用大模型如何理解、提及和推荐你的品牌。
-              从模型回答和引用出发，定位认知差距与下一步行动。
+              从用户提问出发，查看已启用模型如何描述和推荐你的品牌。
+              每份报告都能回到模型回答、提及与来源，核对结论的依据。
             </p>
             <div className="hero-actions">
               <a className="button button-primary" href={productUrl}>
@@ -131,94 +118,47 @@ export function App() {
             </ul>
           </div>
 
-          <div className="preview-frame">
-            <div className="preview-toolbar" aria-hidden="true">
-              <span className="preview-dots">
-                <i />
-                <i />
-                <i />
-              </span>
-              <span>映川 · 品牌分析示意</span>
+          <div className="preview-frame" aria-label="映川分析流程">
+            <div className="preview-toolbar">
+              <span>映川分析流程</span>
+              <span>从问题到依据</span>
             </div>
-            <div className="hero-data" aria-label="多模型品牌可见度示例">
-              <div className="data-head">
-                <div>
-                  <p>多模型品牌可见度</p>
-                  <span>界面示意 · 非真实检测结果</span>
-                </div>
-                <span className="live-state">
-                  <i aria-hidden="true" />
-                  示例报告
-                </span>
+            <div className="hero-process">
+              <div className="hero-process__heading">
+                <span>一次分析，逐步看清</span>
+                <strong>品牌在 AI 回答中的位置</strong>
               </div>
-
-              <div className="data-labels" aria-hidden="true">
-                <span>模型</span>
-                <span>可见度</span>
-                <span>推荐倾向</span>
-                <span>信息完整度</span>
-                <span>置信区间</span>
-              </div>
-
-              <div className="model-table">
-                {modelRows.map((row) => (
-                  <div className="model-row" key={row.model}>
-                    <strong>{row.model}</strong>
-                    <div className="score-cell">
-                      <span>{row.score} / 100</span>
-                      <i
-                        aria-hidden="true"
-                        style={{ "--score": `${row.score}%` } as CSSProperties}
-                      />
-                    </div>
-                    <span>{row.tendency}</span>
-                    <span
-                      className="dot-score"
-                      aria-label={`${row.completeness} / 5`}
-                    >
-                      {[1, 2, 3, 4, 5].map((dot) => (
-                        <i
-                          className={dot <= row.completeness ? "is-on" : ""}
-                          key={dot}
-                          aria-hidden="true"
-                        />
-                      ))}
-                    </span>
-                    <span>{row.confidence}</span>
+              <ol>
+                <li>
+                  <span>01</span>
+                  <div>
+                    <strong>确定分析范围</strong>
+                    <p>确认品牌、用户提问和参与分析的模型。</p>
                   </div>
-                ))}
-              </div>
-
-              <div className="trend-panel">
-                <div>
-                  <span>整体可见度</span>
-                  <strong>68</strong>
-                  <small>/ 100</small>
-                </div>
-                <div className="trend-bars" aria-label="五轮示意分数">
-                  {[34, 48, 42, 61, 68].map((height, index) => (
-                    <i
-                      key={height}
-                      style={{ "--height": `${height}%` } as CSSProperties}
-                      aria-hidden="true"
-                    >
-                      <span>{`0${index + 1}`}</span>
-                    </i>
-                  ))}
-                </div>
-                <p>
-                  较上一轮 <strong>↑ 7</strong>
-                  <span>样本 80 · 有效回答 74</span>
-                </p>
-              </div>
+                </li>
+                <li>
+                  <span>02</span>
+                  <div>
+                    <strong>保留回答依据</strong>
+                    <p>查看模型回答原文、品牌提及与返回的引用。</p>
+                  </div>
+                </li>
+                <li>
+                  <span>03</span>
+                  <div>
+                    <strong>形成分析报告</strong>
+                    <p>结合有效样本和结果限制，安排下一步优化。</p>
+                  </div>
+                </li>
+              </ol>
             </div>
           </div>
         </section>
 
         <section className="capability-section" id="capabilities">
           <div className="section-intro">
-            <p className="section-label">01 / 产品能力</p>
-            <h2>从 AI 认知，走到增长行动</h2>
+            <p className="section-label">产品能力</p>
+            <h2>看清品牌被如何提及</h2>
           </div>
           <div className="capability-grid">
             {capabilities.map((capability) => (
@@ -237,7 +177,7 @@ export function App() {
 
         <section className="workflow-section" id="workflow">
           <div className="workflow-heading">
-            <p className="section-label">02 / 分析路径</p>
+            <p className="section-label">分析路径</p>
             <div>
               <h2>四步获得第一份品牌 AI 认知报告</h2>
               <p>复杂的模型调用、解析和证据整理，由映川收进一条透明流程。</p>
@@ -261,24 +201,24 @@ export function App() {
 
         <section className="evidence-section" id="evidence">
           <div className="evidence-copy">
-            <p className="section-label">03 / 证据体系 · 界面示意</p>
+            <p className="section-label">报告依据</p>
             <h2>先展示证据，再给结论</h2>
             <p>
-              分析结果记录问题、模型回答、时间与官方返回的引用。
-              下面的数据和回答仅用于说明界面，不代表真实检测结果。
+              报告中的回答和评分来自实际分析任务。你可以核对提问、模型回答原文、
+              品牌提及与模型返回的来源，并看到样本和结果限制。
             </p>
             <dl>
               <div>
-                <dt>74</dt>
-                <dd>本轮有效回答</dd>
+                <dt>问题</dt>
+                <dd>对应的分析范围</dd>
               </div>
               <div>
-                <dt>93%</dt>
-                <dd>证据可追溯比例</dd>
+                <dt>回答</dt>
+                <dd>模型原文与提及</dd>
               </div>
               <div>
-                <dt>4</dt>
-                <dd>参与检测模型</dd>
+                <dt>结论</dt>
+                <dd>样本、置信度与限制</dd>
               </div>
             </dl>
           </div>
@@ -287,67 +227,51 @@ export function App() {
             <div
               className="evidence-tabs"
               role="group"
-              aria-label="切换模型回答示意"
+              aria-label="查看报告内容"
             >
-              {modelRows.map((model) => (
+              {reportSections.map((section) => (
                 <button
-                  aria-pressed={activeModel.model === model.model}
+                  aria-pressed={activeSection.title === section.title}
                   className={
-                    activeModel.model === model.model ? "is-active" : ""
+                    activeSection.title === section.title ? "is-active" : ""
                   }
-                  key={model.model}
-                  onClick={() => setActiveModel(model)}
+                  key={section.title}
+                  onClick={() => setActiveSection(section)}
                   type="button"
                 >
-                  {model.model}
+                  {section.title}
                 </button>
               ))}
             </div>
-            <div className="question-block" id="demo-answer">
+            <div className="question-block" id="report-section">
               <Quotes aria-hidden="true" />
               <div>
-                <span>用户问题</span>
-                <strong>有哪些值得信赖的品牌 AI 可见度分析工具？</strong>
+                <span>报告内容</span>
+                <strong>{activeSection.title}</strong>
               </div>
-              <p className="evidence-score">
-                <span>可见度评分</span>
-                <strong>{activeModel.score}</strong> / 100
-              </p>
             </div>
             <div className="answer-block">
-              <span>{activeModel.model} · 回答示意</span>
-              <p>
-                这个示意回答展示如何按模型查看品牌提及、推荐倾向和来源。
-                正式报告以实际模型回答为准。
-              </p>
+              <span>可核对的信息</span>
+              <p>{activeSection.description}</p>
             </div>
             <div className="source-list">
-              <span>来源类型示意 · 非真实引用</span>
+              <span>报告字段</span>
               <ol>
-                <li>
-                  <strong>01</strong>
-                  品牌官网 · 产品能力说明
-                  <span>示意</span>
-                </li>
-                <li>
-                  <strong>02</strong>
-                  行业报告 · AI 搜索趋势
-                  <span>示意</span>
-                </li>
-                <li>
-                  <strong>03</strong>
-                  公开评测 · 品牌认知对比
-                  <span>示意</span>
-                </li>
+                {activeSection.fields.map((field, index) => (
+                  <li key={field}>
+                    <strong>0{index + 1}</strong>
+                    {field}
+                  </li>
+                ))}
               </ol>
             </div>
           </div>
         </section>
 
         <section className="final-cta">
-          <p className="section-label">START / 开始检测</p>
+          <p className="section-label">开始使用</p>
           <div>
-            <h2>让 AI 的认知，成为你的增长起点</h2>
+            <h2>从第一份报告开始，找到下一步</h2>
             <a className="button button-light" href={productUrl}>
               开始品牌检测
               <Arrow />
