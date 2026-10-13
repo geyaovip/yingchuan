@@ -4,17 +4,17 @@ export const capabilities = [
   {
     index: "01",
     title: "多模型检测",
-    description: "分析用户可能提出的问题，比较各模型对品牌的回答。",
+    description: "按问题和模型查看提及率、推荐率与品牌表现。",
   },
   {
     index: "02",
     title: "证据化评分",
-    description: "评分关联原始回答、引用来源和有效样本。",
+    description: "从原始回答核对评分依据，查看引用域名与文章排行。",
   },
   {
     index: "03",
     title: "可执行优化",
-    description: "按优先级查看建议，确定下一步优化。",
+    description: "将建议转为任务，记录措施与证据，按原配置复测。",
   },
 ] as const;
 

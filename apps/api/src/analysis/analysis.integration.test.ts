@@ -19,7 +19,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { AppModule } from "../app.module.js";
 import { ANALYSIS_SERVICE } from "./analysis.constants.js";
-import type { AnalysisApplicationService } from "@yingchuan/analysis";
+import {
+  MonitoringApplicationService,
+  type AnalysisApplicationService,
+} from "@yingchuan/analysis";
+import { vi } from "vitest";
 import { ScoringApplicationService } from "@yingchuan/scoring";
 import { ReportApplicationService } from "@yingchuan/reports";
 import {
@@ -58,7 +62,7 @@ describe("analysis jobs, runs, cancellation and retries", () => {
   let userId: string;
   let workspaceId: string;
   let projectId: string;
-  const failKimi = true;
+  let failKimi = true;
   let failDoubao = false;
   const requestedOutputLimits: (number | undefined)[] = [];
 
@@ -199,6 +203,8 @@ describe("analysis jobs, runs, cancellation and retries", () => {
   });
 
   afterAll(async () => {
+    await database.optimizationTask.deleteMany({ where: { projectId } });
+    await database.monitoringSchedule.deleteMany({ where: { projectId } });
     await database.notificationDelivery.deleteMany({
       where: { notification: { workspaceId } },
     });
@@ -480,6 +486,528 @@ describe("analysis jobs, runs, cancellation and retries", () => {
     expect(recovered.body.data.runs[0].attempts[0].attemptNumber).toBe(2);
   });
 
+  it("returns real insights, confirmed competitors and citation evidence with tenant checks", async () => {
+    const baseline = await database.analysisJob.findUniqueOrThrow({
+      where: { idempotencyKey: `analysis:${userId}:analysis-partial-1` },
+    });
+    const competitor = await database.competitor.findFirstOrThrow({
+      where: { projectId },
+    });
+    await database.competitor.update({
+      where: { id: competitor.id },
+      data: { status: "confirmed" },
+    });
+    const run = await database.modelRun.findFirstOrThrow({
+      where: { analysisJobId: baseline.id, status: "succeeded" },
+    });
+    await database.modelRunResult.update({
+      where: { modelRunId: run.id },
+      data: {
+        citations: [
+          {
+            url: "https://news.example.com/article?utm_source=ark",
+            title: "品牌报道",
+          },
+          { url: "https://news.example.com/article" },
+        ],
+      },
+    });
+    const response = await read()
+      .get(`/api/v1/projects/${projectId}/insights?days=30`)
+      .expect(200);
+    expect(response.body.data.summary).toMatchObject({
+      mentionRate: 100,
+      validSamples: 1,
+      rankSamples: 1,
+    });
+    expect(response.body.data.competitors).toHaveLength(1);
+    expect(response.body.data.citations.domains[0].count).toBe(1);
+    expect(response.body.data.citations.articles[0].evidence[0]).toMatchObject({
+      jobId: baseline.id,
+      runId: run.id,
+    });
+    expect(response.body.data.trends[0].diagnosticOnly).toBe(true);
+    await read()
+      .get(`/api/v1/projects/${uuidv7()}/insights?days=30`)
+      .expect(404);
+    await read()
+      .get(`/api/v1/projects/${projectId}/insights?days=8`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .get(`/api/v1/projects/${projectId}/monitoring`)
+      .expect(401);
+    const foreignWorkspace = await database.workspace.create({
+      data: {
+        id: uuidv7(),
+        name: "隔离工作区",
+        slug: `isolation-${uuidv7()}`,
+        createdById: userId,
+      },
+    });
+    const foreignProject = await database.project.create({
+      data: {
+        id: uuidv7(),
+        name: "隔离项目",
+        workspaceId: foreignWorkspace.id,
+        createdById: userId,
+        status: "ready",
+      },
+    });
+    try {
+      await read()
+        .get(`/api/v1/projects/${foreignProject.id}/insights?days=30`)
+        .expect(404);
+      await read()
+        .get(`/api/v1/projects/${foreignProject.id}/monitoring`)
+        .expect(404);
+      await read()
+        .get(`/api/v1/projects/${foreignProject.id}/optimization-tasks`)
+        .expect(404);
+    } finally {
+      await database.workspace.delete({ where: { id: foreignWorkspace.id } });
+    }
+  });
+
+  it("executes selected monitoring once, checks budgets, pauses and recovers an expired lease", async () => {
+    const options = (
+      await read().get(`/api/v1/projects/${projectId}/monitoring`).expect(200)
+    ).body.data;
+    const model = options.models[0];
+    const prompt = options.prompts[0];
+    const input = {
+      name: "每日品牌监测",
+      frequency: "daily",
+      hour: 9,
+      minute: 0,
+      weekday: 1,
+      promptIds: [prompt.id],
+      modelConfigIds: [model.id],
+      maxCostMicros: "10000000",
+    };
+    await write()
+      .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+      .send({ ...input, maxCostMicros: "1" })
+      .expect(409);
+    await write()
+      .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+      .send({ ...input, promptIds: [uuidv7()] })
+      .expect(409);
+    await request(app.getHttpServer())
+      .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+      .set("Cookie", cookie)
+      .set("Origin", origin)
+      .send(input)
+      .expect(403);
+    const schedule = (
+      await write()
+        .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+        .send(input)
+        .expect(201)
+    ).body.data;
+    const due = new Date(Date.now() - 60_000);
+    await database.monitoringSchedule.update({
+      where: { id: schedule.id },
+      data: { nextRunAt: due },
+    });
+    const monitoring = app.get(MonitoringApplicationService);
+    await Promise.all([monitoring.runDue(), monitoring.runDue()]);
+    const executions = await database.monitoringExecution.findMany({
+      where: { scheduleId: schedule.id },
+    });
+    expect(executions).toHaveLength(1);
+    expect(executions[0]?.status).toBe("submitted");
+    const job = await database.analysisJob.findUniqueOrThrow({
+      where: { id: executions[0]!.analysisJobId! },
+      include: { runs: true },
+    });
+    expect(job.runs).toHaveLength(1);
+    expect(job.runs[0]?.modelConfigVersionId).toBeDefined();
+    // Recover after job submission succeeded but the execution acknowledgement was lost.
+    await database.monitoringExecution.update({
+      where: { id: executions[0]!.id },
+      data: { status: "running", leaseUntil: due, analysisJobId: null },
+    });
+    await monitoring.runDue();
+    expect(
+      (
+        await database.monitoringExecution.findUniqueOrThrow({
+          where: { id: executions[0]!.id },
+        })
+      ).analysisJobId,
+    ).toBe(job.id);
+    expect(
+      await database.analysisJob.count({
+        where: { idempotencyKey: job.idempotencyKey },
+      }),
+    ).toBe(1);
+    const current = await database.monitoringSchedule.findUniqueOrThrow({
+      where: { id: schedule.id },
+    });
+    await write()
+      .patch(
+        `/api/v1/projects/${projectId}/monitoring/schedules/${schedule.id}`,
+      )
+      .send({ active: false, version: current.version })
+      .expect(200);
+    await write()
+      .patch(
+        `/api/v1/projects/${projectId}/monitoring/schedules/${schedule.id}`,
+      )
+      .send({ active: true, version: current.version })
+      .expect(409);
+    const edited = await write()
+      .patch(
+        `/api/v1/projects/${projectId}/monitoring/schedules/${schedule.id}`,
+      )
+      .send({
+        ...input,
+        name: "更新后的监测",
+        frequency: "weekly",
+        version: current.version + 1,
+      })
+      .expect(200);
+    expect(edited.body.data).toMatchObject({
+      active: false,
+      frequency: "weekly",
+      name: "更新后的监测",
+    });
+    expect(
+      await database.monitoringExecution.count({
+        where: { scheduleId: schedule.id },
+      }),
+    ).toBe(1);
+    await write()
+      .patch(
+        `/api/v1/projects/${projectId}/monitoring/schedules/${schedule.id}`,
+      )
+      .send({ ...input, version: current.version + 2, maxCostMicros: "1" })
+      .expect(409);
+  });
+
+  it("records retry exhaustion and quota failures with one site notification", async () => {
+    const options = (
+      await read().get(`/api/v1/projects/${projectId}/monitoring`)
+    ).body.data;
+    const schedule = (
+      await write()
+        .post(`/api/v1/projects/${projectId}/monitoring/schedules`)
+        .send({
+          name: "失败路径",
+          frequency: "daily",
+          hour: 10,
+          minute: 0,
+          weekday: 1,
+          promptIds: [options.prompts[0].id],
+          modelConfigIds: [options.models[0].id],
+          maxCostMicros: "10000000",
+        })
+        .expect(201)
+    ).body.data;
+    const monitoring = app.get(MonitoringApplicationService);
+    const analysis = app.get<AnalysisApplicationService>(ANALYSIS_SERVICE);
+    const fail = vi
+      .spyOn(analysis, "create")
+      .mockRejectedValue(new Error("database offline"));
+    const now = new Date();
+    await database.monitoringSchedule.update({
+      where: { id: schedule.id },
+      data: { nextRunAt: now },
+    });
+    await monitoring.runDue(now);
+    await monitoring.runDue(new Date(now.getTime() + 60_000));
+    await monitoring.runDue(new Date(now.getTime() + 120_000));
+    fail.mockRestore();
+    const execution = await database.monitoringExecution.findFirstOrThrow({
+      where: { scheduleId: schedule.id },
+    });
+    expect(execution).toMatchObject({ status: "dead_letter", attempts: 3 });
+    await monitoring.runDue(new Date(now.getTime() + 180_000));
+    expect(
+      await database.notification.count({ where: { objectId: execution.id } }),
+    ).toBe(1);
+    await database.monitoringSchedule.update({
+      where: { id: schedule.id },
+      data: { nextRunAt: new Date(now.getTime() + 240_000), maxCostMicros: 1n },
+    });
+    await monitoring.runDue(new Date(now.getTime() + 240_000));
+    const skipped = await database.monitoringExecution.findFirstOrThrow({
+      where: { scheduleId: schedule.id, status: "skipped" },
+    });
+    expect(skipped.errorCode).toBe("MONITORING_BUDGET_EXCEEDED");
+    const balance =
+      (
+        await database.usageLedgerEntry.aggregate({
+          where: { workspaceId, resourceType: "model_cost" },
+          _sum: { quantityMicros: true },
+        })
+      )._sum.quantityMicros ?? 0n;
+    await database.usageLedgerEntry.create({
+      data: {
+        id: uuidv7(),
+        workspaceId,
+        userId,
+        entryType: "adjustment",
+        resourceType: "model_cost",
+        quantityMicros: -balance,
+        source: "test_quota",
+        idempotencyKey: `quota-empty-${schedule.id}`,
+      },
+    });
+    try {
+      await database.monitoringSchedule.update({
+        where: { id: schedule.id },
+        data: {
+          nextRunAt: new Date(now.getTime() + 300_000),
+          maxCostMicros: 10000000n,
+        },
+      });
+      await monitoring.runDue(new Date(now.getTime() + 300_000));
+      expect(
+        await database.monitoringExecution.findFirst({
+          where: {
+            scheduleId: schedule.id,
+            errorCode: "ANALYSIS_QUOTA_INSUFFICIENT",
+            status: "skipped",
+          },
+        }),
+      ).not.toBeNull();
+    } finally {
+      await database.usageLedgerEntry.create({
+        data: {
+          id: uuidv7(),
+          workspaceId,
+          userId,
+          entryType: "adjustment",
+          resourceType: "model_cost",
+          quantityMicros: balance,
+          source: "test_quota",
+          idempotencyKey: `quota-restore-${schedule.id}`,
+        },
+      });
+    }
+  });
+
+  it("shows an effect delta only for fully valid same-condition formal samples", async () => {
+    failKimi = false;
+    await database.modelConfig.updateMany({
+      where: { modelFamily: { in: ["doubao", "kimi"] } },
+      data: { status: "enabled" },
+    });
+    for (let i = 0; i < 9; i++)
+      await write()
+        .post(`/api/v1/projects/${projectId}/prompts`)
+        .send({
+          text: `品牌分析问题 ${i + 1}：有哪些特点和优势？`,
+          category: "factual",
+          scope: "global",
+        })
+        .expect(201);
+    const baseline = await createJob("formal-baseline");
+    async function complete(jobId: string) {
+      const analysis = app.get<AnalysisApplicationService>(ANALYSIS_SERVICE);
+      const events = await database.outboxEvent.findMany({
+        where: {
+          eventType: "analysis.model-run.requested",
+          payload: { path: ["analysisJobId"], equals: jobId },
+        },
+      });
+      for (const event of events) await analysis.executeEvent(event.id);
+      const parseEvents = await database.outboxEvent.findMany({
+        where: {
+          eventType: "response.parse.requested",
+          payload: { path: ["analysisJobId"], equals: jobId },
+        },
+      });
+      for (const event of parseEvents)
+        await new ScoringApplicationService(database).parseEvent(event.id);
+    }
+    await complete(baseline.id);
+    const task = (
+      await write()
+        .post(`/api/v1/projects/${projectId}/optimization-tasks`)
+        .send({
+          title: "正式样本复测",
+          description: "验证相同条件下的变化",
+          baselineJobId: baseline.id,
+        })
+        .expect(201)
+    ).body.data;
+    const retest = (
+      await write()
+        .post(
+          `/api/v1/projects/${projectId}/optimization-tasks/${task.id}/retests`,
+        )
+        .set("Idempotency-Key", "formal-retest")
+        .send({ maxCostMicros: "10000000" })
+        .expect(201)
+    ).body.data;
+    await complete(retest.analysisJobId);
+    const tasks = (
+      await read()
+        .get(`/api/v1/projects/${projectId}/optimization-tasks`)
+        .expect(200)
+    ).body.data as {
+      id: string;
+      retests: { comparable: boolean; delta: number | null }[];
+    }[];
+    expect(tasks.find((row) => row.id === task.id)?.retests[0]).toMatchObject({
+      comparable: true,
+      delta: 0,
+    });
+    const filtered = await read()
+      .get(
+        `/api/v1/projects/${projectId}/insights?days=30&promptId=${(await database.modelRun.findFirstOrThrow({ where: { analysisJobId: baseline.id }, include: { promptVersion: true } })).promptVersion.promptId}`,
+      )
+      .expect(200);
+    expect(
+      filtered.body.data.trends.every(
+        (row: { diagnosticOnly: boolean }) => row.diagnosticOnly,
+      ),
+    ).toBe(true);
+  });
+
+  it("manages tasks with optimistic locking and retests the original frozen versions", async () => {
+    const baseline = await database.analysisJob.findUniqueOrThrow({
+      where: { idempotencyKey: `analysis:${userId}:analysis-partial-1` },
+      include: { runs: { include: { promptVersion: true } } },
+    });
+    await database.modelConfig.updateMany({
+      where: { modelFamily: "kimi" },
+      data: { status: "enabled" },
+    });
+    const input = {
+      title: "完善品牌介绍",
+      description: "补充产品与服务事实及证据",
+      baselineJobId: baseline.id,
+      assigneeId: userId,
+      evidenceUrl: "https://example.com/brand",
+    };
+    await write()
+      .post(`/api/v1/projects/${projectId}/optimization-tasks`)
+      .send({ ...input, assigneeId: uuidv7() })
+      .expect(400);
+    await write()
+      .post(`/api/v1/projects/${projectId}/optimization-tasks`)
+      .send({ ...input, evidenceUrl: "javascript:alert(1)" })
+      .expect(400);
+    const task = (
+      await write()
+        .post(`/api/v1/projects/${projectId}/optimization-tasks`)
+        .send(input)
+        .expect(201)
+    ).body.data;
+    const changes = {
+      title: input.title,
+      description: input.description,
+      assigneeId: input.assigneeId,
+      evidenceUrl: input.evidenceUrl,
+    };
+    await write()
+      .patch(`/api/v1/projects/${projectId}/optimization-tasks/${task.id}`)
+      .send({ ...changes, status: "in_progress", version: 1 })
+      .expect(200);
+    await write()
+      .patch(`/api/v1/projects/${projectId}/optimization-tasks/${task.id}`)
+      .send({ ...changes, status: "done", version: 1 })
+      .expect(409);
+    // A newly edited question must not enter a same-condition retest.
+    const frozenPrompt = baseline.runs[0]!.promptVersion;
+    await database.promptVersion.create({
+      data: {
+        ...frozenPrompt,
+        id: uuidv7(),
+        versionNumber: frozenPrompt.versionNumber + 1,
+        text: "更新后的问题",
+      },
+    });
+    const retest = await write()
+      .post(
+        `/api/v1/projects/${projectId}/optimization-tasks/${task.id}/retests`,
+      )
+      .set("Idempotency-Key", "same-condition")
+      .send({ maxCostMicros: "10000000" })
+      .expect(201);
+    const repeated = await write()
+      .post(
+        `/api/v1/projects/${projectId}/optimization-tasks/${task.id}/retests`,
+      )
+      .set("Idempotency-Key", "same-condition")
+      .send({ maxCostMicros: "10000000" })
+      .expect(201);
+    expect(repeated.body.data.analysisJobId).toBe(
+      retest.body.data.analysisJobId,
+    );
+    const runs = await database.modelRun.findMany({
+      where: { analysisJobId: retest.body.data.analysisJobId },
+    });
+    const conditions = (rows: typeof runs) =>
+      rows
+        .map((row) => [
+          row.promptVersionId,
+          row.modelConfigVersionId,
+          row.scopeHash,
+          row.nativeWebSearchEnabled,
+          row.promptTextSnapshot,
+        ])
+        .sort();
+    expect(conditions(runs)).toEqual(conditions(baseline.runs));
+    const tasks = await read()
+      .get(`/api/v1/projects/${projectId}/optimization-tasks`)
+      .expect(200);
+    expect(tasks.body.data[0].retests).toHaveLength(1);
+    expect(tasks.body.data[0].retests[0]).toMatchObject({
+      comparable: false,
+      delta: null,
+    });
+    // Permission revocation is enforced server-side, including scheduler submission.
+    const membership = await database.workspaceMembership.findFirstOrThrow({
+      where: { userId, workspaceId },
+    });
+    const viewer = await database.role.findFirstOrThrow({
+      where: { code: "viewer", scope: "workspace" },
+    });
+    await database.workspaceMembership.update({
+      where: { id: membership.id },
+      data: { roleId: viewer.id },
+    });
+    await read()
+      .get(`/api/v1/projects/${projectId}/insights?days=7`)
+      .expect(200);
+    await write()
+      .post(
+        `/api/v1/projects/${projectId}/optimization-tasks/${task.id}/retests`,
+      )
+      .set("Idempotency-Key", "not-allowed")
+      .send({ maxCostMicros: "10000000" })
+      .expect(404);
+    await write()
+      .patch(`/api/v1/projects/${projectId}/optimization-tasks/${task.id}`)
+      .send({ ...changes, status: "done", version: 2 })
+      .expect(404);
+    const schedule = await database.monitoringSchedule.findFirstOrThrow({
+      where: { projectId, active: true },
+    });
+    const now = new Date(Date.now() + 600_000);
+    await database.monitoringSchedule.update({
+      where: { id: schedule.id },
+      data: { nextRunAt: now },
+    });
+    await app.get(MonitoringApplicationService).runDue(now);
+    expect(
+      await database.monitoringExecution.findFirst({
+        where: {
+          scheduleId: schedule.id,
+          dueAt: now,
+          errorCode: "RESOURCE_NOT_FOUND",
+        },
+      }),
+    ).not.toBeNull();
+    await database.workspaceMembership.update({
+      where: { id: membership.id },
+      data: { roleId: membership.roleId },
+    });
+  });
+
   async function createJob(key: string) {
     const response = await write()
       .post(`/api/v1/projects/${projectId}/analysis-jobs`)
@@ -501,6 +1029,12 @@ describe("analysis jobs, runs, cancellation and retries", () => {
   function write() {
     const server = app.getHttpServer();
     return {
+      patch: (path: string) =>
+        request(server)
+          .patch(path)
+          .set("Cookie", cookie)
+          .set("Origin", origin)
+          .set("X-CSRF-Token", csrf),
       post: (path: string) =>
         request(server)
           .post(path)
