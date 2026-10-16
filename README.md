@@ -1,74 +1,75 @@
-# 映川
+# 映川 · AI 品牌可见度分析平台
 
-映川是 AI 品牌可见度分析与持续运营管理平台。本仓库已进入 MVP 开发阶段。
+面向品牌与运营团队的 GEO（生成式引擎优化）分析平台，围绕“监测品牌表现、分析回答与引用、制定优化任务、跟踪执行结果”组织工作。通过项目、问题集与多模型分析，沉淀可追溯的品牌可见度报告。
 
-## 从这里开始
+[产品官网](https://chatway.chat/) · [应用工作台](https://app.chatway.chat/) · [管理后台](https://admin.chatway.chat/) · [项目文档](docs/README.md)
 
-1. 阅读 [`docs/README.md`](docs/README.md)，按任务路由选择最小上下文，不要一次加载全部文档。
-2. 阅读 [`AGENTS.md`](AGENTS.md)，遵守实现边界与交付检查。
-3. 开始某个功能前，在 [`docs/delivery/mvp-backlog.md`](docs/delivery/mvp-backlog.md) 中确认 Story、依赖和验收条件。
-4. 遇到未确定事项时，不要自行固化为代码，先查看 [`docs/delivery/open-questions.md`](docs/delivery/open-questions.md) 和 [`docs/delivery/decision-log.md`](docs/delivery/decision-log.md)。
+官网可直接浏览；工作台与管理后台按账号权限访问，管理端需要服务端白名单授权。
 
-## 当前阶段
+## 核心功能
 
-- 已有输入：[`docs/product/prd-v3.md`](docs/product/prd-v3.md)（PRD V3.0 快照，2026-07-22 收录）。
-- 当前产物：MVP Epic 0–11 已实现，覆盖身份与工作区、项目与 Prompt、火山方舟四模型、分析编排、解析评分、版本化报告、管理后台、受控 OpenClaw 运营助手、站内通知与 Telegram 管理配置，以及带法律保留和审计的数据生命周期任务。
-- 当前阶段：本地功能与自动化验收已完成；生产联调需要配置 Resend、火山方舟 Model ID/API Key、OpenClaw 固定镜像摘要、Telegram Bot，以及 GitHub/Cloudflare/共享服务器授权。
+| 模块 | 功能说明 |
+| --- | --- |
+| 项目与问题集 | 按工作区管理品牌项目、监测问题和分析配置。 |
+| 多模型分析 | 通过统一模型网关组织火山方舟模型调用，记录执行状态、用量与错误。 |
+| 回答与引用分析 | 查看模型回答、品牌表现、引用来源与分析洞察。 |
+| 报告与趋势 | 保存带评分版本的分析结果，供报告查看与历史对照。 |
+| 优化任务 | 将分析发现转为可跟踪的运营任务，关联通知与执行状态。 |
+| 运营管理 | 提供管理后台、审计记录、通知配置及数据生命周期管理。 |
 
-## 本地开发
+## 工程设计
 
-需要 Node.js 22、npm 10 和 Docker Desktop。首次启动：
+- **模块化单体与独立 Worker**：业务模块保持明确边界，分析编排和异步任务由 Worker 承担。
+- **统一模型网关**：供应商调用、模型配置、凭据保护和用量记录集中处理。
+- **服务端工作区隔离**：页面、运营助手与 Worker 通过应用服务执行业务，统一校验权限。
+- **任务可靠性**：异步任务包含幂等、超时、有限重试和审计关联。
+- **评分可追溯**：报告携带评分版本，避免把不同口径的结果直接合并为趋势。
+
+## 技术栈与目录
+
+| 层级 | 技术 / 目录 |
+| --- | --- |
+| 用户端、管理端、官网 | React、TypeScript、Vite；`apps/web`、`apps/admin`、`apps/website` |
+| API | NestJS；`apps/api` |
+| 异步任务 | `apps/worker` |
+| 业务与基础能力 | `packages/analysis`、`packages/model-gateway`、`packages/reports` 等共享包 |
+| 数据与队列 | PostgreSQL、Prisma、Redis、BullMQ |
+| 工程管理 | npm workspaces、Turborepo、Vitest、GitHub Actions |
+
+## 本地运行
+
+需要 Node.js 22、npm 10 和 Docker。
 
 ```bash
+git clone https://github.com/geyaovip/yingchuan.git
+cd yingchuan
 cp .env.example .env
-npm install
+npm ci
 npm run deps:up
 npm run dev
 ```
 
-`deps:up` 只启动映川自己的开发 PostgreSQL、测试 PostgreSQL 和 Redis，并显式使用 Compose project `yingchuan`。默认仅监听本机 `55432`、`55433` 和 `56379`，不会操作其他项目的容器、网络或数据卷。私有文件保存在 `storage/private/`，目录内容不进入 Git。
+按 `.env.example` 配置本地数据库与必要密钥。依赖脚本仅操作 `yingchuan` Compose 项目；数据库迁移和测试数据的使用方式见仓库脚本与[开发文档](docs/README.md)。
 
-- 用户端：`http://localhost:5173`
-- 管理端：`http://localhost:5174`
-- API 健康检查：`http://localhost:3000/api/v1/health`
-- API 就绪检查：`http://localhost:3000/api/v1/ready`
-- API 指标：`http://localhost:3000/api/v1/metrics`
-- OpenAPI JSON：`http://localhost:3000/api/openapi.json`
-- API 文档：`http://localhost:3000/api/docs`
+| 服务 | 本地地址 |
+| --- | --- |
+| 应用工作台 | http://localhost:5173 |
+| 管理后台 | http://localhost:5174 |
+| API 健康检查 | http://localhost:3000/api/v1/health |
+| API 就绪检查 | http://localhost:3000/api/v1/ready |
+| API 文档 | http://localhost:3000/api/docs |
 
-认证 API 在生产只接受 `app.chatway.chat` 与 `admin.chatway.chat`，开发模式额外接受本机 Vite 端口。真实邮件联调前需配置 Resend；自动化测试使用内存邮件适配器，不发送外部邮件。管理端白名单固定由服务端 `ADMIN_ALLOWED_EMAILS` 校验，默认仅 `geyaovip@163.com`。
-
-常用质量检查：
+## 开发检查
 
 ```bash
 npm run check
-```
-
-该命令依次运行格式、Lint、类型检查、单元/集成测试、构建、OpenAPI 生成一致性、文档和密钥检查。
-CI 还会在空 PostgreSQL 中验证迁移、重复部署迁移、加载测试 fixture、审计生产依赖并扫描当前文件与完整 Git 历史中的密钥。
-
-本地依赖管理：
-
-```bash
 npm run deps:status
-npm run deps:logs
-npm run deps:down
 ```
 
-`deps:down` 只停止并移除 `yingchuan` Compose project 的容器和网络，默认保留 PostgreSQL、Redis 数据卷。
+`check` 包含格式、Lint、类型、测试、构建、OpenAPI 一致性、文档与密钥检查。测试数据仅用于独立测试数据库，不应写入生产环境。
 
-数据库迁移与测试 fixture：
+## 配置与交付说明
 
-```bash
-npm run db:migrate:dev -- --name migration_name
-npm run db:migrate:test
-npm run db:fixtures:test
-```
+真实模型分析需要配置火山方舟 Model ID 与 API Key；邮件、Telegram 和运营助手分别依赖相应服务配置。测试适配器与示例 Model ID 不代表外部服务已接通。模型凭据只在服务端加密保存，运营助手通过受控 Skill 执行授权动作。
 
-测试 fixture 只能写入名为 `yingchuan_test` 的数据库；生产环境和开发数据库都会被代码拒绝。火山方舟的四类测试模型配置默认禁用，使用虚构 Model ID，不能冒充真实接入。
-
-本地凭证加密使用 `MODEL_CREDENTIAL_MASTER_KEY`（至少 32 字符）和 `MODEL_CREDENTIAL_KEY_VERSION`。生产值必须由服务器 Secret/受限文件注入，不得复用 `.env.example` 占位值。方舟 API Key 仅能由管理员在二次邮箱验证窗口内覆盖，不会回显。
-
-## 产品边界
-
-首期采用模块化单体与异步 Worker。Agent 只能通过受控 Skill 调用业务服务；不直连数据库、不读取密钥，也不能执行高风险操作。
+当前功能范围、实施记录与交付条件见[开发任务清单](docs/delivery/mvp-backlog.md)和[决策记录](docs/delivery/decision-log.md)。公开入口可访问与具体租户的业务验收分别核对。
