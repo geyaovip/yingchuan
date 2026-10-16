@@ -97,3 +97,17 @@ HTTP、队列、外部模型、Agent、报告和通知共享 `traceId`；用户�
 ## 7. 事件复盘
 
 P0/P1 事件记录影响、检测方式、时间线、缓解、根因、数据/费用影响、恢复验证和行动项。复盘关注系统改进，不以 Agent 的推测代替日志和指标证据。
+
+## 8. 共享 APaaS 网关路由
+
+`api.chatway.chat` 同时承载三个 APaaS 应用的 API。Caddy 必须先用 `handle_path` 去除应用前缀，再转发到专属容器；其余请求才进入映川 `api:3000`。
+
+| 路径前缀            | 上游                             |
+| ------------------- | -------------------------------- |
+| `/apaas-sales360/*` | `apaas-sales360-crm-api:4301`    |
+| `/apaas-mes/*`      | `apaas-mes-api:4401`             |
+| `/apaas-erp/*`      | `apaas-electronics-erp-api:4501` |
+
+若应用容器 healthy、公网却返回 `Cannot GET /apaas-.../api/v1/health`，先检查发布是否覆盖了这三条路由。配置以 `deploy/caddy/Caddyfile.example` 为源；禁止只在运行容器里临时补路由。变更前备份当前配置、执行 `caddy validate`，再热重载；文件绑定挂载时应保留被挂载文件的 inode。
+
+`deploy/scripts/check-runtime.sh` 的 `all` 模式会同时检查映川就绪接口和这三条公网网关健康路由，任一路由失败均阻断发布成功状态。热修复后还需复测三个 Cloudflare Worker 的 `/api/v1/health`、未登录鉴权以及相邻服务健康。

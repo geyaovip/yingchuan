@@ -104,6 +104,18 @@ case "$check_mode" in
     check_queue
     curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-all-errors \
       https://api.chatway.chat/api/v1/ready >/dev/null
+    metrics_status=$(curl --silent --show-error --max-time 15 --output /dev/null \
+      --write-out '%{http_code}' https://api.chatway.chat/api/v1/metrics)
+    if [ "$metrics_status" != 404 ]; then
+      echo "Public metrics must remain blocked (HTTP $metrics_status)." >&2
+      exit 1
+    fi
+    # These APIs share this gateway; a default-route-only config must fail release checks.
+    for prefix in apaas-sales360 apaas-mes apaas-erp; do
+      curl --fail --silent --show-error --max-time 15 --retry 2 --retry-delay 2 \
+        --retry-all-errors "https://api.chatway.chat/$prefix/api/v1/health" >/dev/null
+      printf 'shared_gateway_check %s=ready\n' "$prefix"
+    done
     ;;
   *)
     echo "CHECK_MODE must be queue, services, or all." >&2
