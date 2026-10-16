@@ -1,12 +1,26 @@
 api.chatway.chat {
 	encode zstd gzip
 
-	@metrics path /api/v1/metrics
-	respond @metrics 404
+	handle /api/v1/metrics {
+		respond 404
+	}
 
-	reverse_proxy api:3000 {
-		health_uri /api/v1/ready
-		health_status 200
+	# Shared APaaS APIs: strip the gateway prefix before forwarding.
+	handle_path /apaas-sales360/* {
+		reverse_proxy apaas-sales360-crm-api:4301
+	}
+	handle_path /apaas-mes/* {
+		reverse_proxy apaas-mes-api:4401
+	}
+	handle_path /apaas-erp/* {
+		reverse_proxy apaas-electronics-erp-api:4501
+	}
+
+	handle {
+		reverse_proxy api:3000 {
+			health_uri /api/v1/ready
+			health_status 200
+		}
 	}
 
 	header {

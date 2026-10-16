@@ -8,14 +8,14 @@
 
 ## 核心功能
 
-| 模块 | 功能说明 |
-| --- | --- |
-| 项目与问题集 | 按工作区管理品牌项目、监测问题和分析配置。 |
-| 多模型分析 | 通过统一模型网关组织火山方舟模型调用，记录执行状态、用量与错误。 |
-| 回答与引用分析 | 查看模型回答、品牌表现、引用来源与分析洞察。 |
-| 报告与趋势 | 保存带评分版本的分析结果，供报告查看与历史对照。 |
-| 优化任务 | 将分析发现转为可跟踪的运营任务，关联通知与执行状态。 |
-| 运营管理 | 提供管理后台、审计记录、通知配置及数据生命周期管理。 |
+| 模块           | 功能说明                                                         |
+| -------------- | ---------------------------------------------------------------- |
+| 项目与问题集   | 按工作区管理品牌项目、监测问题和分析配置。                       |
+| 多模型分析     | 通过统一模型网关组织火山方舟模型调用，记录执行状态、用量与错误。 |
+| 回答与引用分析 | 查看模型回答、品牌表现、引用来源与分析洞察。                     |
+| 报告与趋势     | 保存带评分版本的分析结果，供报告查看与历史对照。                 |
+| 优化任务       | 将分析发现转为可跟踪的运营任务，关联通知与执行状态。             |
+| 运营管理       | 提供管理后台、审计记录、通知配置及数据生命周期管理。             |
 
 ## 工程设计
 
@@ -27,14 +27,14 @@
 
 ## 技术栈与目录
 
-| 层级 | 技术 / 目录 |
-| --- | --- |
-| 用户端、管理端、官网 | React、TypeScript、Vite；`apps/web`、`apps/admin`、`apps/website` |
-| API | NestJS；`apps/api` |
-| 异步任务 | `apps/worker` |
-| 业务与基础能力 | `packages/analysis`、`packages/model-gateway`、`packages/reports` 等共享包 |
-| 数据与队列 | PostgreSQL、Prisma、Redis、BullMQ |
-| 工程管理 | npm workspaces、Turborepo、Vitest、GitHub Actions |
+| 层级                 | 技术 / 目录                                                                |
+| -------------------- | -------------------------------------------------------------------------- |
+| 用户端、管理端、官网 | React、TypeScript、Vite；`apps/web`、`apps/admin`、`apps/website`          |
+| API                  | NestJS；`apps/api`                                                         |
+| 异步任务             | `apps/worker`                                                              |
+| 业务与基础能力       | `packages/analysis`、`packages/model-gateway`、`packages/reports` 等共享包 |
+| 数据与队列           | PostgreSQL、Prisma、Redis、BullMQ                                          |
+| 工程管理             | npm workspaces、Turborepo、Vitest、GitHub Actions                          |
 
 ## 本地运行
 
@@ -51,13 +51,13 @@ npm run dev
 
 按 `.env.example` 配置本地数据库与必要密钥。依赖脚本仅操作 `yingchuan` Compose 项目；数据库迁移和测试数据的使用方式见仓库脚本与[开发文档](docs/README.md)。
 
-| 服务 | 本地地址 |
-| --- | --- |
-| 应用工作台 | http://localhost:5173 |
-| 管理后台 | http://localhost:5174 |
+| 服务         | 本地地址                            |
+| ------------ | ----------------------------------- |
+| 应用工作台   | http://localhost:5173               |
+| 管理后台     | http://localhost:5174               |
 | API 健康检查 | http://localhost:3000/api/v1/health |
-| API 就绪检查 | http://localhost:3000/api/v1/ready |
-| API 文档 | http://localhost:3000/api/docs |
+| API 就绪检查 | http://localhost:3000/api/v1/ready  |
+| API 文档     | http://localhost:3000/api/docs      |
 
 ## 开发检查
 
