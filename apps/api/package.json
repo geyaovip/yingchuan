@@ -36,7 +36,7 @@
     "test": "npm run build --workspace @yingchuan/database && vitest run --no-file-parallelism"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.1.28",
+    "@nestjs/testing": "^12.1.3",
     "@types/express": "^5.0.6",
     "@types/pg": "^8.16.0",
     "@types/supertest": "^6.0.3",
